@@ -1,0 +1,541 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMIN
+  FACULTY
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ClassStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  REMOVED
+}
+
+enum BadgeTemplateStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum BadgeIssuanceStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum SigningKeyStatus {
+  ACTIVE
+  RETIRED
+  COMPROMISED
+}
+
+enum IssuanceBatchStatus {
+  READY
+  SIGNING
+  COMMITTED
+  EXPIRED
+}
+
+enum ImportPreviewStatus {
+  READY
+  COMMITTED
+  EXPIRED
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum NotificationType {
+  BADGE_ISSUED
+  BADGE_REVOKED
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  PROCESSING
+  RETRY_SCHEDULED
+  SENT
+  FAILED
+}
+
+model User {
+  id                   String                @id @default(cuid())
+  name                 String
+  email                String                @unique @db.VarChar(191)
+  normalizedEmail      String                @unique @map("normalized_email") @db.VarChar(191)
+  emailVerified        DateTime?             @map("email_verified")
+  image                String?               @db.Text
+  passwordHash         String                @map("password_hash") @db.VarChar(255)
+  role                 Role
+  status               UserStatus            @default(ACTIVE)
+  sessionVersion       Int                   @default(0) @map("session_version")
+  lastLoginAt          DateTime?             @map("last_login_at")
+  deletedAt            DateTime?             @map("deleted_at")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  accounts             Account[]
+  sessions             Session[]
+  auditLogs            AuditLog[]            @relation("AuditActor")
+  facultyProfile       FacultyProfile?
+  ownedClasses         Class[]               @relation("ClassOwner")
+  ownedBadgeTemplates  BadgeTemplate[]       @relation("BadgeOwner")
+  rosterImportPreviews RosterImportPreview[] @relation("ImportActor")
+  issuedBadgeIssuances BadgeIssuance[]       @relation("IssuanceIssuer")
+  issuanceBatches      IssuanceBatch[]       @relation("BatchFaculty")
+
+  @@map("users")
+}
+
+model FacultyProfile {
+  userId       String      @id @map("user_id")
+  employeeId   String?     @unique @map("employee_id") @db.VarChar(100)
+  departmentId String?     @map("department_id")
+  title        String?     @db.VarChar(191)
+  bio          String?     @db.Text
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  @@index([departmentId])
+  @@map("faculty_profiles")
+}
+
+model Department {
+  id              String           @id @default(cuid())
+  name            String           @db.VarChar(191)
+  normalizedName  String           @unique @map("normalized_name") @db.VarChar(191)
+  status          DepartmentStatus @default(ACTIVE)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  facultyProfiles FacultyProfile[]
+
+  @@index([status, name])
+  @@map("departments")
+}
+
+model Class {
+  id                   String                @id @default(cuid())
+  ownerUserId          String                @map("owner_user_id")
+  courseCode           String                @map("course_code") @db.VarChar(100)
+  title                String                @db.VarChar(191)
+  section              String                @db.VarChar(100)
+  term                 String                @db.VarChar(100)
+  academicYear         String                @map("academic_year") @db.VarChar(20)
+  description          String?               @db.Text
+  status               ClassStatus           @default(ACTIVE)
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  owner                User                  @relation("ClassOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  enrollments          ClassStudent[]
+  badgeTemplates       BadgeTemplate[]
+  rosterImportPreviews RosterImportPreview[]
+  badgeIssuances       BadgeIssuance[]
+  issuanceBatches      IssuanceBatch[]
+
+  @@index([ownerUserId, status])
+  @@index([courseCode])
+  @@index([title])
+  @@map("classes")
+}
+
+model Student {
+  id             String          @id @default(cuid())
+  studentNumber  String          @unique @map("student_number") @db.VarChar(100)
+  firstName      String          @map("first_name") @db.VarChar(191)
+  lastName       String          @map("last_name") @db.VarChar(191)
+  email          String          @db.VarChar(191)
+  metadataJson   Json?           @map("metadata_json")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  enrollments    ClassStudent[]
+  badgeIssuances BadgeIssuance[]
+
+  @@index([lastName, firstName])
+  @@index([email])
+  @@map("students")
+}
+
+model ClassStudent {
+  classId          String           @map("class_id")
+  studentId        String           @map("student_id")
+  enrollmentStatus EnrollmentStatus @default(ACTIVE) @map("enrollment_status")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  class            Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student          Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@id([classId, studentId])
+  @@index([classId, enrollmentStatus])
+  @@map("class_students")
+}
+
+model RosterImportPreview {
+  id             String              @id @default(cuid())
+  classId        String              @map("class_id")
+  actorUserId    String              @map("actor_user_id")
+  sourceFilename String              @map("source_filename") @db.VarChar(255)
+  rowsJson       Json                @map("rows_json")
+  validCount     Int                 @map("valid_count")
+  errorCount     Int                 @map("error_count")
+  status         ImportPreviewStatus @default(READY)
+  expiresAt      DateTime            @map("expires_at")
+  committedAt    DateTime?           @map("committed_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  class          Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
+  actor          User                @relation("ImportActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([classId, status])
+  @@index([expiresAt])
+  @@map("roster_import_previews")
+}
+
+model BadgeTemplate {
+  id               String              @id @default(cuid())
+  classId          String              @map("class_id")
+  ownerUserId      String              @map("owner_user_id")
+  name             String              @db.VarChar(191)
+  description      String              @db.Text
+  criteria         String              @db.Text
+  imagePath        String              @map("image_path") @db.VarChar(500)
+  status           BadgeTemplateStatus @default(ACTIVE)
+  expiresAfterDays Int?                @map("expires_after_days")
+  metadataJson     Json?               @map("metadata_json")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  class            Class               @relation(fields: [classId], references: [id], onDelete: Restrict)
+  owner            User                @relation("BadgeOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  badgeIssuances   BadgeIssuance[]
+  issuanceBatches  IssuanceBatch[]
+
+  @@index([classId, status])
+  @@index([ownerUserId])
+  @@index([name])
+  @@map("badge_templates")
+}
+
+model BadgeIssuance {
+  id                      String                      @id @default(cuid())
+  publicId                String                      @unique @map("public_id") @db.VarChar(191)
+  classId                 String                      @map("class_id")
+  badgeTemplateId         String                      @map("badge_template_id")
+  studentId               String                      @map("student_id")
+  issuerUserId            String                      @map("issuer_user_id")
+  status                  BadgeIssuanceStatus         @default(ACTIVE)
+  issuedAt                DateTime                    @map("issued_at")
+  expiresAt               DateTime?                   @map("expires_at")
+  recipientSnapshotJson   Json                        @map("recipient_snapshot_json")
+  achievementSnapshotJson Json                        @map("achievement_snapshot_json")
+  issuerSnapshotJson      Json                        @map("issuer_snapshot_json")
+  credentialJson          Json                        @map("credential_json")
+  signedCredentialJson    Json?                       @map("signed_credential_json")
+  signingKeyId            String?                     @map("signing_key_id")
+  serializerVersion       Int?                        @map("serializer_version")
+  supersedesId            String?                     @unique @map("supersedes_id")
+  supersededById          String?                     @unique @map("superseded_by_id")
+  snapshotVersion         Int                         @default(1) @map("snapshot_version")
+  revocationReason        String?                     @map("revocation_reason") @db.Text
+  revokedAt               DateTime?                   @map("revoked_at")
+  createdAt               DateTime                    @default(now()) @map("created_at")
+  updatedAt               DateTime                    @updatedAt @map("updated_at")
+  class                   Class                       @relation(fields: [classId], references: [id], onDelete: Restrict)
+  badgeTemplate           BadgeTemplate               @relation(fields: [badgeTemplateId], references: [id], onDelete: Restrict)
+  student                 Student                     @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  issuer                  User                        @relation("IssuanceIssuer", fields: [issuerUserId], references: [id], onDelete: Restrict)
+  signingKey              SigningKey?                 @relation(fields: [signingKeyId], references: [id], onDelete: Restrict)
+  statusAllocation        CredentialStatusAllocation?
+  supersedes              BadgeIssuance?              @relation("IssuanceSupersedes", fields: [supersedesId], references: [id], onDelete: Restrict)
+  supersededBy            BadgeIssuance?              @relation("IssuanceSupersededBy", fields: [supersededById], references: [id], onDelete: Restrict)
+  supersededCredential    BadgeIssuance?              @relation("IssuanceSupersedes")
+  supersedingCredential   BadgeIssuance?              @relation("IssuanceSupersededBy")
+  notificationDeliveries  NotificationDelivery[]
+
+  @@index([classId, badgeTemplateId, studentId])
+  @@index([classId, issuedAt])
+  @@index([issuerUserId, issuedAt])
+  @@index([status, issuedAt])
+  @@index([badgeTemplateId])
+  @@index([studentId])
+  @@index([signingKeyId])
+  @@index([supersedesId])
+  @@index([supersededById])
+  @@map("badge_issuances")
+}
+
+model SigningKey {
+  id                    String                 @id @default(cuid())
+  verificationMethodUrl String                 @unique @map("verification_method_url") @db.VarChar(2048)
+  controllerUrl         String                 @map("controller_url") @db.VarChar(2048)
+  algorithm             String                 @db.VarChar(64)
+  cryptosuite           String                 @db.VarChar(100)
+  publicMultikey        String                 @map("public_multikey") @db.Text
+  fingerprint           String                 @unique @db.VarChar(255)
+  status                SigningKeyStatus       @default(RETIRED)
+  activatedAt           DateTime?              @map("activated_at")
+  retiredAt             DateTime?              @map("retired_at")
+  compromisedAt         DateTime?              @map("compromised_at")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  badgeIssuances        BadgeIssuance[]
+  statusLists           CredentialStatusList[]
+
+  @@index([status, activatedAt])
+  @@map("signing_keys")
+}
+
+model CredentialStatusList {
+  id                   String                       @id @default(cuid())
+  publicUrl            String                       @unique @map("public_url") @db.VarChar(2048)
+  purpose              String                       @default("revocation") @db.VarChar(32)
+  capacity             Int
+  nextIndex            Int                          @default(0) @map("next_index")
+  signedCredentialJson Json?                        @map("signed_credential_json")
+  version              Int                          @default(0)
+  digest               String?                      @db.VarChar(255)
+  signingKeyId         String?                      @map("signing_key_id")
+  createdAt            DateTime                     @default(now()) @map("created_at")
+  updatedAt            DateTime                     @updatedAt @map("updated_at")
+  signingKey           SigningKey?                  @relation(fields: [signingKeyId], references: [id], onDelete: Restrict)
+  allocations          CredentialStatusAllocation[]
+
+  @@index([purpose, nextIndex])
+  @@index([signingKeyId])
+  @@map("credential_status_lists")
+}
+
+model CredentialStatusAllocation {
+  id                String               @id @default(cuid())
+  issuanceId        String               @unique @map("issuance_id")
+  statusListId      String               @map("status_list_id")
+  index             Int
+  isRevoked         Boolean              @default(false) @map("is_revoked")
+  revokedAt         DateTime?            @map("revoked_at")
+  statusListVersion Int                  @default(0) @map("status_list_version")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+  issuance          BadgeIssuance        @relation(fields: [issuanceId], references: [id], onDelete: Restrict)
+  statusList        CredentialStatusList @relation(fields: [statusListId], references: [id], onDelete: Restrict)
+
+  @@unique([statusListId, index])
+  @@index([statusListId, isRevoked])
+  @@map("credential_status_allocations")
+}
+
+model CredentialReplacementGuard {
+  id Int @id @db.TinyInt
+
+  @@map("credential_replacement_guards")
+}
+
+model NotificationDelivery {
+  id                 String                     @id @default(cuid())
+  issuanceId         String                     @map("issuance_id")
+  type               NotificationType
+  status             NotificationDeliveryStatus @default(PENDING)
+  recipientEmail     String                     @map("recipient_email") @db.VarChar(191)
+  recipientFirstName String                     @map("recipient_first_name") @db.VarChar(191)
+  badgeName          String                     @map("badge_name") @db.VarChar(191)
+  issuerName         String                     @map("issuer_name") @db.VarChar(191)
+  verificationUrl    String                     @map("verification_url") @db.VarChar(2048)
+  supportContact     String?                    @map("support_contact") @db.VarChar(2048)
+  occurredAt         DateTime                   @map("occurred_at")
+  attemptCount       Int                        @default(0) @map("attempt_count")
+  nextAttemptAt      DateTime                   @default(now()) @map("next_attempt_at")
+  claimToken         String?                    @map("claim_token") @db.VarChar(191)
+  claimExpiresAt     DateTime?                  @map("claim_expires_at")
+  lastErrorCategory  String?                    @map("last_error_category") @db.VarChar(50)
+  safeDiagnosticCode String?                    @map("safe_diagnostic_code") @db.VarChar(100)
+  providerMessageId  String?                    @map("provider_message_id") @db.VarChar(191)
+  sentAt             DateTime?                  @map("sent_at")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+  updatedAt          DateTime                   @updatedAt @map("updated_at")
+  issuance           BadgeIssuance              @relation(fields: [issuanceId], references: [id], onDelete: Restrict)
+
+  @@unique([issuanceId, type])
+  @@index([status, nextAttemptAt])
+  @@index([claimExpiresAt])
+  @@index([createdAt])
+  @@map("notification_deliveries")
+}
+
+model RateLimitBucket {
+  id           String   @id @db.Char(64)
+  policy       String   @db.VarChar(32)
+  keyHash      String   @map("key_hash") @db.Char(64)
+  windowStart  DateTime @map("window_start")
+  expiresAt    DateTime @map("expires_at")
+  requestCount Int      @default(0) @map("request_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([policy, keyHash, windowStart])
+  @@index([expiresAt, id])
+  @@map("rate_limit_buckets")
+}
+
+model OperationalHeartbeat {
+  id         String   @id @db.VarChar(64)
+  mailStatus String   @map("mail_status") @db.VarChar(16)
+  recordedAt DateTime @map("recorded_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([recordedAt])
+  @@map("operational_heartbeats")
+}
+
+model IssuanceBatch {
+  id                    String                     @id @default(cuid())
+  classId               String                     @map("class_id")
+  badgeTemplateId       String                     @map("badge_template_id")
+  facultyUserId         String                     @map("faculty_user_id")
+  sourceFilename        String                     @map("source_filename") @db.VarChar(255)
+  mappingJson           Json                       @map("mapping_json")
+  rowsJson              Json                       @map("rows_json")
+  previewFingerprint    String                     @map("preview_fingerprint") @db.VarChar(64)
+  totalRows             Int                        @map("total_rows")
+  readyCount            Int                        @default(0) @map("ready_count")
+  alreadyIssuedCount    Int                        @default(0) @map("already_issued_count")
+  invalidCount          Int                        @default(0) @map("invalid_count")
+  issuedCount           Int                        @default(0) @map("issued_count")
+  status                IssuanceBatchStatus        @default(READY)
+  signingClaimToken     String?                    @map("signing_claim_token") @db.Char(36)
+  signingClaimVersion   Int                        @default(0) @map("signing_claim_version")
+  signingClaimExpiresAt DateTime?                  @map("signing_claim_expires_at")
+  expiresAt             DateTime                   @map("expires_at")
+  committedAt           DateTime?                  @map("committed_at")
+  createdAt             DateTime                   @default(now()) @map("created_at")
+  updatedAt             DateTime                   @updatedAt @map("updated_at")
+  class                 Class                      @relation(fields: [classId], references: [id], onDelete: Restrict)
+  badgeTemplate         BadgeTemplate              @relation(fields: [badgeTemplateId], references: [id], onDelete: Restrict)
+  faculty               User                       @relation("BatchFaculty", fields: [facultyUserId], references: [id], onDelete: Restrict)
+  tupleReservations     IssuanceTupleReservation[]
+
+  @@index([facultyUserId, classId, status, createdAt])
+  @@index([expiresAt])
+  @@index([previewFingerprint])
+  @@index([signingClaimExpiresAt])
+  @@map("issuance_batches")
+}
+
+model IssuanceTupleReservation {
+  id                      String         @id @default(cuid())
+  classId                 String         @map("class_id")
+  badgeTemplateId         String         @map("badge_template_id")
+  studentId               String         @map("student_id")
+  facultyUserId           String         @map("faculty_user_id")
+  claimToken              String         @map("claim_token") @db.Char(36)
+  batchId                 String?        @map("batch_id")
+  batchPreviewFingerprint String?        @map("batch_preview_fingerprint") @db.VarChar(64)
+  batchClaimVersion       Int?           @map("batch_claim_version")
+  expiresAt               DateTime       @map("expires_at")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  batch                   IssuanceBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, badgeTemplateId, studentId], map: "issuance_tuple_reservations_tuple_key")
+  @@unique([batchId, studentId], map: "issuance_tuple_reservations_batch_student_key")
+  @@index([claimToken])
+  @@index([expiresAt])
+  @@map("issuance_tuple_reservations")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String? @db.VarChar(191)
+  scope             String? @db.VarChar(191)
+  id_token          String? @db.Text
+  session_state     String? @db.VarChar(191)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token") @db.VarChar(191)
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String   @db.VarChar(191)
+  token      String   @unique @db.VarChar(191)
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") @db.VarChar(191)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model SystemSetting {
+  id              String   @id @default("default") @db.VarChar(32)
+  issuerName      String?  @map("issuer_name") @db.VarChar(191)
+  issuerUrl       String?  @map("issuer_url") @db.VarChar(2048)
+  issuerLogoPath  String?  @map("issuer_logo_path") @db.VarChar(1024)
+  supportContact  String?  @map("support_contact") @db.VarChar(2048)
+  sharingEnabled  Boolean  @default(true) @map("sharing_enabled")
+  updatedByUserId String?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?  @map("actor_user_id")
+  action      String   @db.VarChar(100)
+  entityType  String   @map("entity_type") @db.VarChar(100)
+  entityId    String?  @map("entity_id") @db.VarChar(191)
+  contextJson Json?    @map("context_json")
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+  actor       User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

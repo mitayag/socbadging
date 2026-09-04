@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+coverage/
+playwright-report/
+test-results/
+.playwright-e2e-fixture.json
+storage/*
+!storage/.gitkeep
+*.log
+.DS_Store
+tsconfig.tsbuildinfo

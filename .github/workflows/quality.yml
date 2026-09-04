@@ -1,0 +1,20 @@
+name: Quality
+on: [push, pull_request]
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run db:generate
+        env: { DATABASE_URL: "mysql://build:build@localhost:3306/build" }
+      - run: npm run format
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          DATABASE_URL: "mysql://build:build@localhost:3306/build"
+          APP_URL: "http://localhost:3000"
