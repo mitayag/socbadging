@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   loadSignerClientConfig,
+  loadSignerReadinessConfig,
   loadSignerServiceConfig,
   loadSmtpConfig,
   loadWorkerConfig,
@@ -63,6 +64,44 @@ describe("signer environment", () => {
         SIGNER_URL: "http://signer:3101",
         SIGNER_TOKEN: "internal-token",
         SIGNER_TIMEOUT_MS: "0",
+      }),
+    ).toThrow();
+  });
+
+  it("requires the web signer endpoint, token, and expected public metadata together", () => {
+    expect(
+      loadSignerReadinessConfig({
+        SIGNER_URL: "http://signer:3101/",
+        SIGNER_TOKEN: "internal-token",
+        SIGNER_TIMEOUT_MS: "2500",
+        SIGNING_KEY_ID: "https://badges.example.test/api/issuers/hau-soc/keys/key-1",
+        SIGNING_CRYPTOSUITE: "eddsa-rdfc-2022",
+      }),
+    ).toEqual({
+      baseUrl: "http://signer:3101",
+      token: "internal-token",
+      timeoutMs: 2500,
+      expectedKeyId: "https://badges.example.test/api/issuers/hau-soc/keys/key-1",
+      expectedCryptosuite: "eddsa-rdfc-2022",
+    });
+
+    expect(() =>
+      loadSignerReadinessConfig({
+        SIGNER_URL: "http://signer:3101",
+        SIGNER_TOKEN: "internal-token",
+        SIGNING_KEY_ID: "https://badges.example.test/api/issuers/hau-soc/keys/key-1",
+      }),
+    ).toThrow();
+  });
+
+  it("requires the signer private key to use an absolute secret-file path", () => {
+    expect(() =>
+      loadSignerServiceConfig({
+        SIGNER_TOKEN: "internal-token",
+        SIGNING_PRIVATE_KEY_PATH: "open-badges-signing-key.json",
+        SIGNING_KEY_ID: "https://badges.example.test/api/issuers/hau-soc/keys/key-1",
+        SIGNING_PUBLIC_MULTIKEY: "z6MkPublic",
+        SIGNING_KEY_FINGERPRINT: "z6MkPublic",
       }),
     ).toThrow();
   });

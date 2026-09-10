@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { loadSignerClientConfig } from "@/config/env";
+import { loadSignerClientConfig, loadSignerReadinessConfig } from "@/config/env";
 import {
   SignRequestSchema,
   SignResponseSchema,
@@ -153,7 +153,7 @@ export async function getSignerHealth(): Promise<{
   cryptosuite: string;
 } | null> {
   try {
-    const config = loadSignerClientConfig(process.env);
+    const config = loadSignerReadinessConfig(process.env);
     const response = await fetch(`${config.baseUrl}/health`, {
       signal: AbortSignal.timeout(config.timeoutMs),
     });
@@ -164,7 +164,12 @@ export async function getSignerHealth(): Promise<{
         cryptosuite: z.literal("eddsa-rdfc-2022"),
       })
       .safeParse(await response.json());
-    return response.ok && parsed.success ? parsed.data : null;
+    return response.ok &&
+      parsed.success &&
+      parsed.data.keyId === config.expectedKeyId &&
+      parsed.data.cryptosuite === config.expectedCryptosuite
+      ? parsed.data
+      : null;
   } catch {
     return null;
   }

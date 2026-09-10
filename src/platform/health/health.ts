@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 
+import { getSignerHealth } from "@/modules/signing/signer-client";
 import { prisma } from "@/platform/db/prisma";
 
 const WORKER_STALE_AFTER_MS = 5 * 60_000;
@@ -14,6 +15,11 @@ export type WorkerHeartbeat = {
 export type HealthDependencies = {
   checkDatabase(): Promise<void>;
   readWorkerHeartbeat(): Promise<WorkerHeartbeat | null>;
+  readSignerHealth(): Promise<{
+    status: "ready";
+    keyId: string;
+    cryptosuite: string;
+  } | null>;
 };
 
 export type HealthStatus = {
@@ -24,6 +30,11 @@ export type HealthStatus = {
   notifications: {
     status: "ready" | "degraded" | "unknown";
     workerHeartbeat: "fresh" | "stale" | "missing";
+  };
+  signer: {
+    status: "ready" | "unavailable";
+    keyId: string | null;
+    cryptosuite: string | null;
   };
 };
 
@@ -42,6 +53,7 @@ const defaultDependencies: HealthDependencies = {
     `);
     return rows[0] ?? null;
   },
+  readSignerHealth: getSignerHealth,
 };
 
 export async function getHealthStatus(
@@ -75,11 +87,20 @@ export async function getHealthStatus(
       ? "degraded"
       : "ready";
 
+  let signerHealth: Awaited<ReturnType<HealthDependencies["readSignerHealth"]>> = null;
+  try {
+    signerHealth = await dependencies.readSignerHealth();
+  } catch {
+    signerHealth = null;
+  }
+  const ready = databaseReady && signerHealth?.status === "ready";
+
   return {
-    status: databaseReady ? "ok" : "unavailable",
+    status: ready ? "ok" : "unavailable",
     service: "hau-soc-badging-system",
-    readiness: databaseReady ? "ready" : "unavailable",
+    readiness: ready ? "ready" : "unavailable",
     database: { status: databaseReady ? "ready" : "unavailable" },
     notifications: { status: notificationStatus, workerHeartbeat: heartbeatState },
+    signer: signerHealth ?? { status: "unavailable", keyId: null, cryptosuite: null },
   };
 }

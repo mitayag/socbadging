@@ -7,15 +7,17 @@
 2. Configure `APP_URL` with the canonical HTTPS URL. Keep `TRUST_PROXY=false` unless a trusted proxy
    overwrites `X-Forwarded-For`.
 3. Create and verify a current database/media backup before deployment.
-4. Build and start `db`, `migrate`, `media-init`, `web`, and `worker`; use one worker initially.
+4. Follow the signing-key lifecycle runbook, then start `db`, `migrate`, `media-init`, `signer`,
+   `web`, and `worker`; use one worker initially.
 5. Confirm the migration container exits successfully with no pending migrations.
 6. Verify `/api/health`, worker health, and a controlled notification through the configured SMTP
    provider.
 
 ## Health semantics
 
-- HTTP 200 with `readiness: ready`: the web and MariaDB are available.
-- HTTP 503 with `readiness: unavailable`: MariaDB is unavailable; remove the instance from service.
+- HTTP 200 with `readiness: ready`: web, MariaDB, and signer are available with matching public
+  key ID and cryptosuite.
+- HTTP 503 with `readiness: unavailable`: MariaDB or signer is unavailable; remove the instance.
 - `notifications.status: degraded`: SMTP delivery failed recently or the worker heartbeat is stale.
   Credential issuance remains available because notifications use an outbox.
 - `notifications.status: unknown`: no worker heartbeat exists, usually because the notification
@@ -54,6 +56,6 @@ row/checksum comparisons, public credential resolution, and media verification.
 ## Scaling and known boundaries
 
 MariaDB coordinates outbox claims and shared rate limits across instances. Add workers cautiously
-and monitor provider throughput. Current credentials are unsigned Open Badges 3.0-aligned records;
-cryptographic signing, certification/conformance, and external wallet interoperability remain Phase
-8 scope.
+and monitor provider throughput. Phase 8 credentials are cryptographically signed Open Badges
+3.0-aligned records. Production activation, final conformance evidence, and official 1EdTech review
+remain required before any certification claim.

@@ -101,7 +101,7 @@ export function loadSignerServiceConfig(environment: Record<string, string | und
   return z
     .object({
       SIGNER_TOKEN: z.string().min(1),
-      SIGNING_PRIVATE_KEY_PATH: z.string().min(1),
+      SIGNING_PRIVATE_KEY_PATH: z.string().startsWith("/").min(2),
       SIGNING_KEY_ID: z.url(),
       SIGNING_PUBLIC_MULTIKEY: z.string().trim().min(1).max(16_384),
       SIGNING_KEY_FINGERPRINT: z.string().trim().min(1).max(255),
@@ -131,4 +131,20 @@ export function loadSignerClientConfig(environment: Record<string, string | unde
       timeoutMs: value.SIGNER_TIMEOUT_MS,
     }))
     .parse(environment);
+}
+
+export function loadSignerReadinessConfig(environment: Record<string, string | undefined>) {
+  const client = loadSignerClientConfig(environment);
+  const metadata = z
+    .object({
+      SIGNING_KEY_ID: z.url(),
+      SIGNING_CRYPTOSUITE: z.literal("eddsa-rdfc-2022"),
+    })
+    .parse(environment);
+
+  return {
+    ...client,
+    expectedKeyId: metadata.SIGNING_KEY_ID,
+    expectedCryptosuite: metadata.SIGNING_CRYPTOSUITE,
+  };
 }

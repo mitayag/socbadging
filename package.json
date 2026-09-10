@@ -20,6 +20,7 @@
     "test:integration:docker": "docker compose --profile test run --build --rm integration",
     "test:e2e": "playwright test",
     "worker": "tsx src/worker.ts",
+    "signer": "tsx src/signer.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",

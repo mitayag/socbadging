@@ -214,3 +214,11 @@
 - Task 9: complete (independent review approved; lint and typecheck passed; Node 22 full
   unit/component suite 103 files / 724 tests passed; full MariaDB integration suite 13 files / 99
   tests passed; production build passed with the known proof-module dynamic-dependency warnings).
+- Task 10: complete. Compose runs the signer without a published host port, with a read-only root,
+  size-limited ephemeral `/tmp`, and a read-only named secret. Web readiness fails closed unless
+  signer key ID and cryptosuite match configuration. Disposable-key Docker smoke passed for both
+  healthy and deliberately mismatched fingerprints. Focused tests passed (4 files / 24 tests),
+  Node 22 full unit/component tests passed (103 files / 730 tests), lint and typecheck passed, and
+  production build passed with the known proof-module dynamic-dependency warnings. See
+  `task-10-report.md`.
+- Task 11: implementation pending.

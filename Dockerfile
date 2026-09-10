@@ -22,6 +22,11 @@ FROM tools AS worker
 ENV NODE_ENV=production
 CMD ["npm", "run", "worker"]
 
+FROM tools AS signer
+ENV NODE_ENV=production
+EXPOSE 3101
+CMD ["npm", "run", "signer"]
+
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production

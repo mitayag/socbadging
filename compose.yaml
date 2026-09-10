@@ -44,6 +44,11 @@ services:
       ISSUER_NAME: ${ISSUER_NAME:-Holy Angel University — School of Computing}
       ISSUER_URL: ${ISSUER_URL:-}
       ISSUER_LOGO_PATH: ${ISSUER_LOGO_PATH:-/images/hausoclogo.png}
+      SIGNER_URL: http://signer:3101
+      SIGNER_TOKEN: ${SIGNER_TOKEN:?Set a unique internal signer bearer token}
+      SIGNER_TIMEOUT_MS: ${SIGNER_TIMEOUT_MS:-5000}
+      SIGNING_KEY_ID: ${SIGNING_KEY_ID:?Set the public signing key URL}
+      SIGNING_CRYPTOSUITE: ${SIGNING_CRYPTOSUITE:-eddsa-rdfc-2022}
     ports:
       - "${APP_PORT:-3000}:3000"
     volumes:
@@ -52,6 +57,7 @@ services:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
       media-init: { condition: service_completed_successfully }
+      signer: { condition: service_healthy }
     healthcheck:
       test:
         [
@@ -64,6 +70,33 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+  signer:
+    build: { context: ., target: signer }
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+    environment:
+      SIGNER_TOKEN: ${SIGNER_TOKEN:?Set a unique internal signer bearer token}
+      SIGNING_PRIVATE_KEY_PATH: /run/secrets/open-badges-signing-key
+      SIGNING_KEY_ID: ${SIGNING_KEY_ID:?Set the public signing key URL}
+      SIGNING_PUBLIC_MULTIKEY: ${SIGNING_PUBLIC_MULTIKEY:?Set the registered public Multikey}
+      SIGNING_KEY_FINGERPRINT: ${SIGNING_KEY_FINGERPRINT:?Set the registered key fingerprint}
+    secrets:
+      - source: open_badges_signing_key
+        target: open-badges-signing-key
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3101/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
   worker:
     build: { context: ., target: worker }
     profiles: ["notifications"]
@@ -123,3 +156,7 @@ services:
 volumes:
   mariadb_data:
   media_data:
+
+secrets:
+  open_badges_signing_key:
+    file: ${SIGNING_PRIVATE_KEY_FILE:?Set an explicit host path to the signing key file}

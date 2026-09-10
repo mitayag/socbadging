@@ -2,7 +2,10 @@
 
 HAU School of Computing’s Dockerized badging MVP. Administrators manage Faculty access; Faculty manage classes, rosters, badge templates, and individual or validated batch credential issuance.
 
-Issued credentials are immutable historical records. Credential JSON-LD is **unsigned** and Open Badges 3.0-aligned; this product is **not Open Badges certified**.
+Issued credentials are immutable historical records. Phase 8 credentials use signed Open Badges
+3.0-aligned JSON-LD and interoperable revocation status lists. Legacy unsigned credentials remain
+available without being presented as cryptographically verified. This product is **not Open Badges
+certified**.
 
 ## Local setup
 
@@ -50,11 +53,16 @@ Active Administrators can revoke any credential. Active Faculty can revoke only 
 
 ## Docker deployment
 
-Run `docker compose up --build -d`. Compose waits for MariaDB, applies checked-in migrations once, then starts the web service. Run the initial seed separately with `docker compose --profile tools run --rm seed` after setting the bootstrap environment variables.
+Configure the signing values in `.env`, including an explicit host path to a mode-`0600` private
+key file, before starting the production stack. Run `docker compose up --build -d`. Compose starts
+the internal-only signer with its read-only named secret and starts web only after signer readiness
+passes. Run the initial seed separately with `docker compose --profile tools run --rm seed`.
 
 Persistent named volumes are `mariadb_data` and `media_data`. Back up both before production changes. No secret belongs in source control. Enable provider-neutral notification delivery with `docker compose --profile notifications up -d worker mailpit` for local development, or configure an external SMTP provider and start the worker in production.
 
-`GET /api/health` reports database-backed web readiness separately from notification-worker health. Database failure returns HTTP 503. Missing/stale worker heartbeat or degraded SMTP delivery is reported under `notifications` while the available web application continues to return HTTP 200.
+`GET /api/health` reports database, signer, and notification-worker state. Database or signer
+failure returns HTTP 503; signer health contains only status, key ID, and cryptosuite. Notification
+degradation does not take an otherwise ready web application out of service.
 
 ## Recipient email notifications
 
@@ -63,6 +71,11 @@ Individual issuance, newly created rows from batch issuance, and revocation enqu
 For local delivery inspection, enable the `notifications` Compose profile and use Mailpit. Production deployments should set the documented `SMTP_*` variables to their provider and run the worker as a separate process. Notification delivery is asynchronous: a successfully issued credential can temporarily show Pending or Retry Scheduled while SMTP recovers.
 
 Backup, restore, deployment, health, logging, and incident procedures are documented in [the production runbook](docs/operations/production-runbook.md) and [the backup/restore runbook](docs/operations/backup-restore-runbook.md). Restore is intentionally restricted to a target explicitly confirmed as disposable.
+
+Signing-key generation, activation, rotation, retirement, compromise response, and separate backup
+are documented in [the key lifecycle runbook](docs/runbooks/open-badges-key-lifecycle.md). Final
+HTTPS deployment, external retrieval, official-suite submission, and certification wording are in
+[the production activation runbook](docs/runbooks/open-badges-production-activation.md).
 
 ## Quality gates
 

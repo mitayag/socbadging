@@ -11,6 +11,8 @@ const servers: Server[] = [];
 const previousSignerUrl = process.env.SIGNER_URL;
 const previousSignerToken = process.env.SIGNER_TOKEN;
 const previousSignerTimeout = process.env.SIGNER_TIMEOUT_MS;
+const previousSigningKeyId = process.env.SIGNING_KEY_ID;
+const previousSigningCryptosuite = process.env.SIGNING_CRYPTOSUITE;
 const document = {
   "@context": "https://www.w3.org/ns/credentials/v2",
   id: "https://badges.example.test/credentials/one",
@@ -42,6 +44,10 @@ afterEach(async () => {
   else process.env.SIGNER_TOKEN = previousSignerToken;
   if (previousSignerTimeout === undefined) delete process.env.SIGNER_TIMEOUT_MS;
   else process.env.SIGNER_TIMEOUT_MS = previousSignerTimeout;
+  if (previousSigningKeyId === undefined) delete process.env.SIGNING_KEY_ID;
+  else process.env.SIGNING_KEY_ID = previousSigningKeyId;
+  if (previousSigningCryptosuite === undefined) delete process.env.SIGNING_CRYPTOSUITE;
+  else process.env.SIGNING_CRYPTOSUITE = previousSigningCryptosuite;
 });
 
 async function startServer(handler: RequestListener) {
@@ -130,6 +136,45 @@ describe("signer client", () => {
     process.env.SIGNER_URL = baseUrl;
     process.env.SIGNER_TOKEN = "test-token";
     process.env.SIGNER_TIMEOUT_MS = "1000";
+
+    await expect(getSignerHealth()).resolves.toBeNull();
+  });
+
+  it("returns signer metadata only when the configured identity matches", async () => {
+    const keyId = "https://badges.example.test/api/issuers/hau-soc/keys/key-1";
+    const baseUrl = await startServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ status: "ready", keyId, cryptosuite: "eddsa-rdfc-2022" }));
+    });
+    process.env.SIGNER_URL = baseUrl;
+    process.env.SIGNER_TOKEN = "test-token";
+    process.env.SIGNER_TIMEOUT_MS = "1000";
+    process.env.SIGNING_KEY_ID = keyId;
+    process.env.SIGNING_CRYPTOSUITE = "eddsa-rdfc-2022";
+
+    await expect(getSignerHealth()).resolves.toEqual({
+      status: "ready",
+      keyId,
+      cryptosuite: "eddsa-rdfc-2022",
+    });
+  });
+
+  it("fails health closed when the signer reports a different key", async () => {
+    const baseUrl = await startServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          status: "ready",
+          keyId: "https://badges.example.test/api/issuers/hau-soc/keys/unexpected",
+          cryptosuite: "eddsa-rdfc-2022",
+        }),
+      );
+    });
+    process.env.SIGNER_URL = baseUrl;
+    process.env.SIGNER_TOKEN = "test-token";
+    process.env.SIGNER_TIMEOUT_MS = "1000";
+    process.env.SIGNING_KEY_ID = "https://badges.example.test/api/issuers/hau-soc/keys/key-1";
+    process.env.SIGNING_CRYPTOSUITE = "eddsa-rdfc-2022";
 
     await expect(getSignerHealth()).resolves.toBeNull();
   });
