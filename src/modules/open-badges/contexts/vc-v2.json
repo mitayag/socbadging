@@ -85,8 +85,7 @@
       }
     },
 
-    "EnvelopedVerifiableCredential":
-      "https://www.w3.org/2018/credentials#EnvelopedVerifiableCredential",
+    "EnvelopedVerifiableCredential": "https://www.w3.org/2018/credentials#EnvelopedVerifiableCredential",
 
     "VerifiablePresentation": {
       "@id": "https://www.w3.org/2018/credentials#VerifiablePresentation",
@@ -118,11 +117,9 @@
       }
     },
 
-    "EnvelopedVerifiablePresentation":
-      "https://www.w3.org/2018/credentials#EnvelopedVerifiablePresentation",
+    "EnvelopedVerifiablePresentation": "https://www.w3.org/2018/credentials#EnvelopedVerifiablePresentation",
 
-    "JsonSchemaCredential":
-      "https://www.w3.org/2018/credentials#JsonSchemaCredential",
+    "JsonSchemaCredential": "https://www.w3.org/2018/credentials#JsonSchemaCredential",
 
     "JsonSchema": {
       "@id": "https://www.w3.org/2018/credentials#JsonSchema",
@@ -139,8 +136,7 @@
       }
     },
 
-    "BitstringStatusListCredential":
-      "https://www.w3.org/ns/credentials/status#BitstringStatusListCredential",
+    "BitstringStatusListCredential": "https://www.w3.org/ns/credentials/status#BitstringStatusListCredential",
 
     "BitstringStatusList": {
       "@id": "https://www.w3.org/ns/credentials/status#BitstringStatusList",
@@ -154,15 +150,13 @@
           "@id": "https://www.w3.org/ns/credentials/status#encodedList",
           "@type": "https://w3id.org/security#multibase"
         },
-        "statusPurpose":
-          "https://www.w3.org/ns/credentials/status#statusPurpose",
+        "statusPurpose": "https://www.w3.org/ns/credentials/status#statusPurpose",
         "ttl": "https://www.w3.org/ns/credentials/status#ttl"
       }
     },
 
     "BitstringStatusListEntry": {
-      "@id":
-        "https://www.w3.org/ns/credentials/status#BitstringStatusListEntry",
+      "@id": "https://www.w3.org/ns/credentials/status#BitstringStatusListEntry",
       "@context": {
         "@protected": true,
 
@@ -170,14 +164,11 @@
         "type": "@type",
 
         "statusListCredential": {
-          "@id":
-            "https://www.w3.org/ns/credentials/status#statusListCredential",
+          "@id": "https://www.w3.org/ns/credentials/status#statusListCredential",
           "@type": "@id"
         },
-        "statusListIndex":
-          "https://www.w3.org/ns/credentials/status#statusListIndex",
-        "statusPurpose":
-          "https://www.w3.org/ns/credentials/status#statusPurpose",
+        "statusListIndex": "https://www.w3.org/ns/credentials/status#statusListIndex",
+        "statusPurpose": "https://www.w3.org/ns/credentials/status#statusPurpose",
         "statusMessage": {
           "@id": "https://www.w3.org/ns/credentials/status#statusMessage",
           "@context": {

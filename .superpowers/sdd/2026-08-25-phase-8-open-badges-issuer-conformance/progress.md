@@ -221,4 +221,14 @@
   Node 22 full unit/component tests passed (103 files / 730 tests), lint and typecheck passed, and
   production build passed with the known proof-module dynamic-dependency warnings. See
   `task-10-report.md`.
-- Task 11: implementation pending.
+- Task 11: complete. Deterministic conformance reporting,
+  sensitive-data rejection, desktop/mobile Phase 8 coverage, signer outage recovery, fixture
+  compatibility, README updates, and consolidated traceability are implemented. Node 22
+  unit/component tests passed (104 files / 743 tests), MariaDB 11.8 integration tests passed
+  (13 files / 99 tests), production build passed, and the complete browser regression passed
+  (30/30 across desktop and mobile). Post-documentation format, lint, typecheck, deterministic
+  report reproduction, unit/component, integration, production build, and browser gates passed.
+  The Browser plugin was unavailable, so the approved Playwright fallback supplied rendered
+  desktop/mobile acceptance. `npm audit` dependency advisories are recorded in the Task 11 report
+  for a separately scoped upgrade cycle. Local readiness remains explicitly `certified: false`;
+  production HTTPS activation and official 1EdTech review remain external milestones.

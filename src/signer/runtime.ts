@@ -2,7 +2,9 @@ import { constants as fsConstants } from "node:fs";
 import { open } from "node:fs/promises";
 import { createRequire } from "node:module";
 
+import { DataIntegrityProof } from "@digitalbazaar/data-integrity";
 import * as Ed25519Multikey from "@digitalbazaar/ed25519-multikey";
+import { cryptosuite } from "@digitalbazaar/eddsa-rdfc-2022-cryptosuite";
 import { z } from "zod";
 
 import { loadAllowlistedDocument } from "@/modules/open-badges/document-loader";
@@ -34,12 +36,6 @@ const RuntimeConfigSchema = z
     fingerprint: z.string().trim().min(1).max(255),
   })
   .strict();
-
-type DataIntegrityPackage = {
-  DataIntegrityProof: new (options: { cryptosuite: object; signer?: object }) => object;
-};
-
-type CryptosuitePackage = { cryptosuite: object };
 
 type JsonLdSignaturesPackage = {
   sign: (
@@ -99,10 +95,6 @@ export class SignerRuntimeError extends Error {
 
 const require = createRequire(import.meta.url);
 const jsonldSignatures = require("jsonld-signatures") as JsonLdSignaturesPackage;
-
-async function loadEsmPackage<T>(packageName: string): Promise<T> {
-  return (await import(packageName)) as T;
-}
 
 export async function readBoundedOpenFile(
   file: BoundedReadableFile,
@@ -219,11 +211,6 @@ export async function createSignerRuntime(
     if (!(await keyPair.verifier().verify({ data: KEY_CHALLENGE, signature }))) {
       throw new Error("Private and public keys do not match");
     }
-
-    const [{ DataIntegrityProof }, { cryptosuite }] = await Promise.all([
-      loadEsmPackage<DataIntegrityPackage>("@digitalbazaar/data-integrity"),
-      loadEsmPackage<CryptosuitePackage>("@digitalbazaar/eddsa-rdfc-2022-cryptosuite"),
-    ]);
 
     log("signer.runtime.ready", { keyId: config.keyId, cryptosuite: CRYPTOSUITE });
 

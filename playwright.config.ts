@@ -23,14 +23,10 @@ export default defineConfig({
   ],
   webServer: testDatabaseUrl
     ? {
-        command: "npm run dev -- --port 3100",
+        command: "tsx e2e/start-phase8-server.ts",
         url: `${baseURL}/api/health`,
         reuseExistingServer: false,
-        env: {
-          ...process.env,
-          APP_URL: baseURL,
-          DATABASE_URL: testDatabaseUrl,
-        },
+        env: { ...process.env, TEST_DATABASE_URL: testDatabaseUrl },
       }
     : undefined,
 });

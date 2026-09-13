@@ -75,6 +75,7 @@
 ### Task 1: Pin Standards Libraries and Prove the Cryptographic Primitive
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Create: `src/modules/open-badges/document-loader.ts`
@@ -83,6 +84,7 @@
 - Create: `src/modules/open-badges/proof.test.ts`
 
 **Interfaces:**
+
 - Produces: `loadAllowlistedDocument(url: string): Promise<{ documentUrl: string; document: unknown }>`.
 - Produces: `SignedDocumentSchema`, `SignRequestSchema`, `SignResponseSchema`, `VerifyRequestSchema`, `VerifyResponseSchema`.
 - Produces: `VerificationOutcome = "VERIFIED" | "INVALID_PROOF" | "VERIFICATION_UNAVAILABLE"`.
@@ -109,8 +111,12 @@ Tests must prove:
 await expect(loadAllowlistedDocument("https://attacker.invalid/context")).rejects.toThrow(
   "JSON-LD context is not allowlisted",
 );
-expect(SignRequestSchema.safeParse({ operation: "credential.sign", document: validFixture })).toMatchObject({ success: true });
-expect(VerifyResponseSchema.parse({ outcome: "VERIFIED", keyId: "test-key" }).outcome).toBe("VERIFIED");
+expect(
+  SignRequestSchema.safeParse({ operation: "credential.sign", document: validFixture }),
+).toMatchObject({ success: true });
+expect(VerifyResponseSchema.parse({ outcome: "VERIFIED", keyId: "test-key" }).outcome).toBe(
+  "VERIFIED",
+);
 ```
 
 Include an official-compatible EdDSA fixture whose proof verification fails after changing the achievement name.
@@ -155,6 +161,7 @@ git commit -m "feat: add Open Badges cryptographic primitives"
 ### Task 2: Add Signing, Status, and Replacement Persistence
 
 **Files:**
+
 - Modify: `prisma/schema.prisma`
 - Create: `prisma/migrations/20260825_phase_8_open_badges_signing/migration.sql`
 - Create: `src/modules/signing/key-service.ts`
@@ -164,6 +171,7 @@ git commit -m "feat: add Open Badges cryptographic primitives"
 - Create: `src/modules/issuance/services/status-allocation-service.integration.test.ts`
 
 **Interfaces:**
+
 - Produces: `registerPublicSigningKey(input, actor): Promise<SigningKeyView>`.
 - Produces: `activateSigningKey(keyId, actor): Promise<SigningKeyView>`.
 - Produces: `retireSigningKey(keyId, actor)` and `markSigningKeyCompromised(keyId, actor)`.
@@ -233,6 +241,7 @@ git commit -m "feat: persist signing keys and credential status"
 ### Task 3: Build the Internal Signer and Key Generator
 
 **Files:**
+
 - Create: `src/modules/signing/key-generator.ts`
 - Create: `src/modules/signing/key-generator.test.ts`
 - Create: `scripts/generate-signing-key.ts`
@@ -246,6 +255,7 @@ git commit -m "feat: persist signing keys and credential status"
 - Modify: `src/config/env.ts`
 
 **Interfaces:**
+
 - Produces: `generateEd25519KeyPair(): Promise<{ privateKeyMultibase: string; publicKeyMultibase: string; fingerprint: string }>`.
 - Produces: signer `GET /health`, `POST /v1/sign`, `POST /v1/verify`.
 - Produces: `signCredential(document, correlationId): Promise<SignedOpenBadgeCredential>`.
@@ -298,6 +308,7 @@ git commit -m "feat: add isolated Open Badges signer"
 ### Task 4: Build Canonical Credentials and Bitstring Status Lists
 
 **Files:**
+
 - Create: `src/modules/open-badges/credential-schema.ts`
 - Create: `src/modules/open-badges/credential-schema.test.ts`
 - Create: `src/modules/open-badges/credential-builder.ts`
@@ -309,6 +320,7 @@ git commit -m "feat: add isolated Open Badges signer"
 - Modify: `src/modules/issuance/services/snapshot-schemas.ts`
 
 **Interfaces:**
+
 - Produces: `buildOpenBadgeCredential(input: SignedCredentialBuildInput): UnsignedOpenBadgeCredential`.
 - Produces: `buildStatusListEntry(allocation): BitstringStatusListEntry`.
 - Produces: `encodeRevocationList(indices: number[], capacity: number): string`.
@@ -357,6 +369,7 @@ git commit -m "feat: build conformant credentials and status lists"
 ### Task 5: Require Signing for Individual Issuance
 
 **Files:**
+
 - Create: `src/modules/issuance/services/signed-issuance-service.ts`
 - Create: `src/modules/issuance/services/signed-issuance-service.test.ts`
 - Create: `src/modules/issuance/services/signed-issuance-service.integration.test.ts`
@@ -367,6 +380,7 @@ git commit -m "feat: build conformant credentials and status lists"
 - Modify: `src/components/issuance/issue-badge-form.test.tsx`
 
 **Interfaces:**
+
 - Produces: `prepareSignedIssuance(input): Promise<PreparedSignedIssuance>`.
 - `PreparedSignedIssuance` includes public ID, source snapshots, immutable signed document, signing key ID, serializer version, and status reservation.
 
@@ -410,6 +424,7 @@ git commit -m "feat: require signed individual issuance"
 ### Task 6: Require Signing for Batch Issuance
 
 **Files:**
+
 - Modify: `src/modules/issuance/services/batch-commit-service.ts`
 - Modify: `src/modules/issuance/services/batch-commit-service.test.ts`
 - Modify: `src/modules/issuance/services/batch-commit-service.integration.test.ts`
@@ -419,6 +434,7 @@ git commit -m "feat: require signed individual issuance"
 - Modify: `src/components/issuance/batch-result.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `prepareSignedIssuance(input)` from Task 5.
 - Produces: deterministic batch result containing only committed signed issuances and safe row-level preparation errors.
 
@@ -462,6 +478,7 @@ git commit -m "feat: require signed batch issuance"
 ### Task 7: Integrate Standards-Based Revocation
 
 **Files:**
+
 - Modify: `src/modules/issuance/services/revocation-service.ts`
 - Modify: `src/modules/issuance/services/revocation-service.test.ts`
 - Modify: `src/modules/issuance/services/revocation-service.integration.test.ts`
@@ -471,6 +488,7 @@ git commit -m "feat: require signed batch issuance"
 - Modify: `src/components/issuance/revoke-credential-form.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `regenerateSignedStatusList(tx, listId, signer)` from Task 4.
 - Produces: public status-list response with JSON-LD content type, no-store/revalidation-safe headers, ETag, and security headers.
 
@@ -514,6 +532,7 @@ git commit -m "feat: publish interoperable credential revocation"
 ### Task 8: Publish Issuer/Key Documents and Verify Credentials
 
 **Files:**
+
 - Create: `src/app/api/issuers/hau-soc/route.ts`
 - Create: `src/app/api/issuers/hau-soc/keys/[keyId]/route.ts`
 - Create: `src/app/api/issuers/issuer-routes.test.ts`
@@ -532,6 +551,7 @@ git commit -m "feat: publish interoperable credential revocation"
 - Modify: `src/components/verification/public-credential.test.tsx`
 
 **Interfaces:**
+
 - Produces: `verifyPublicCredential(document, dependencies): Promise<{ outcome: "VERIFIED" | "REVOKED" | "EXPIRED" | "INVALID_PROOF" | "VERIFICATION_UNAVAILABLE"; keyId?: string; checkedAt: Date }>`.
 - Produces: canonical issuer Profile and Multikey documents.
 
@@ -577,6 +597,7 @@ git commit -m "feat: verify and publish signed credentials"
 ### Task 9: Add Signed Replacement and Administrator Key UI
 
 **Files:**
+
 - Create: `src/modules/issuance/services/replacement-service.ts`
 - Create: `src/modules/issuance/services/replacement-service.test.ts`
 - Create: `src/modules/issuance/services/replacement-service.integration.test.ts`
@@ -590,6 +611,7 @@ git commit -m "feat: verify and publish signed credentials"
 - Modify: `src/components/issuance/credential-detail.test.tsx`
 
 **Interfaces:**
+
 - Produces: `createSignedReplacement({ originalIssuanceId, actorId }): Promise<{ replacementId: string; publicId: string }>`.
 - Produces Administrator actions for register/activate/retire/compromise using public metadata only.
 
@@ -637,6 +659,7 @@ git commit -m "feat: add signed credential replacement and key controls"
 ### Task 10: Docker, Health, Secrets, and Operational Runbooks
 
 **Files:**
+
 - Modify: `Dockerfile`
 - Modify: `compose.yaml`
 - Modify: `.env.example`
@@ -649,6 +672,7 @@ git commit -m "feat: add signed credential replacement and key controls"
 - Modify: `README.md`
 
 **Interfaces:**
+
 - Adds Compose `signer` service with internal port only and read-only secret mount.
 - Extends readiness with `signer.status`, `signer.keyId`, and `signer.cryptosuite`; no secret/public key value.
 
@@ -698,6 +722,7 @@ git commit -m "ops: add secure Open Badges signing runtime"
 ### Task 11: Local Conformance Evidence, E2E, and Final Gates
 
 **Files:**
+
 - Create: `src/modules/open-badges/conformance-report.ts`
 - Create: `src/modules/open-badges/conformance-report.test.ts`
 - Create: `scripts/generate-conformance-report.ts`
@@ -708,6 +733,7 @@ git commit -m "ops: add secure Open Badges signing runtime"
 - Modify: `docs/TRACEABILITY.md` if present; otherwise create `docs/TRACEABILITY.md` with all existing mappings preserved from available documentation.
 
 **Interfaces:**
+
 - Produces: `buildLocalConformanceReport(results): LocalConformanceReport` with document/test/library versions, fixture digests, proof/status results, Docker evidence, and explicit `certified: false`.
 
 - [ ] **Step 1: Write failing report tests**

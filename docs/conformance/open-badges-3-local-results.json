@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-09-13T00:00:00.000Z",
+  "certified": false,
+  "gates": [
+    {
+      "name": "EdDSA proof creation and verification",
+      "category": "proof",
+      "passed": true,
+      "evidence": "Node 22 unit/component suite: 104 files, 743 tests passed; tamper and persisted-key binding checks passed"
+    },
+    {
+      "name": "Open Badges credential schema and JSON-LD contexts",
+      "category": "schema",
+      "passed": true,
+      "evidence": "Canonical credential schema suite: 40 tests passed; pinned context fixtures are digest-listed below"
+    },
+    {
+      "name": "Signed revocation status lifecycle",
+      "category": "status",
+      "passed": true,
+      "evidence": "MariaDB 11.8 integration suite: 13 files, 99 tests passed; full browser suite verified signed status-bit publication"
+    },
+    {
+      "name": "Secure signer runtime and production build",
+      "category": "docker",
+      "passed": true,
+      "evidence": "Task 10 healthy and mismatched-key Docker smoke passed; Node 22 production build passed"
+    },
+    {
+      "name": "Desktop and mobile acceptance",
+      "category": "proof",
+      "passed": true,
+      "evidence": "Playwright full suite: 30 of 30 tests passed across desktop and 390x844 mobile projects"
+    }
+  ]
+}

@@ -177,6 +177,19 @@ describe("canonical Open Badges schemas", () => {
     ).toMatchObject({ success: false });
   });
 
+  it("permits canonical HTTP resource URLs only for loopback development", () => {
+    const loopbackCredential = JSON.parse(
+      JSON.stringify(signedCredential).replaceAll(
+        "https://badges.example.test",
+        "http://127.0.0.1:3100",
+      ),
+    );
+
+    expect(SignedOpenBadgeCredentialSchema.safeParse(loopbackCredential)).toMatchObject({
+      success: true,
+    });
+  });
+
   it("accepts a root issuer controller and rejects nested key-path confusion", () => {
     const rootIssuerCredential = {
       ...signedCredential,

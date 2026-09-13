@@ -351,13 +351,21 @@ describe("issueBadge MariaDB transactions", () => {
     try {
       const observed = await reader.$transaction(async (tx) => {
         const beforeCommit = await tx.badgeIssuance.findFirst({
-          where: { classId: fixture.classId, badgeTemplateId: fixture.badgeTemplateId, studentId: fixture.studentId },
+          where: {
+            classId: fixture.classId,
+            badgeTemplateId: fixture.badgeTemplateId,
+            studentId: fixture.studentId,
+          },
         });
         expect(beforeCommit).toBeNull();
 
         const winner = await writer.badgeIssuance.create({ data: issuanceData(fixture) });
         const afterCommitInSameTransaction = await tx.badgeIssuance.findFirst({
-          where: { classId: fixture.classId, badgeTemplateId: fixture.badgeTemplateId, studentId: fixture.studentId },
+          where: {
+            classId: fixture.classId,
+            badgeTemplateId: fixture.badgeTemplateId,
+            studentId: fixture.studentId,
+          },
         });
 
         return { winnerId: winner.id, afterCommitInSameTransaction };
@@ -366,7 +374,11 @@ describe("issueBadge MariaDB transactions", () => {
       expect(observed.afterCommitInSameTransaction).toBeNull();
       await expect(
         reader.badgeIssuance.findFirst({
-          where: { classId: fixture.classId, badgeTemplateId: fixture.badgeTemplateId, studentId: fixture.studentId },
+          where: {
+            classId: fixture.classId,
+            badgeTemplateId: fixture.badgeTemplateId,
+            studentId: fixture.studentId,
+          },
         }),
       ).resolves.toMatchObject({ id: observed.winnerId });
     } finally {
@@ -407,7 +419,11 @@ describe("issueBadge MariaDB transactions", () => {
     ).resolves.toBe(1);
     await expect(
       prisma.badgeIssuance.findFirst({
-        where: { classId: fixture.classId, badgeTemplateId: fixture.badgeTemplateId, studentId: fixture.studentId },
+        where: {
+          classId: fixture.classId,
+          badgeTemplateId: fixture.badgeTemplateId,
+          studentId: fixture.studentId,
+        },
         select: { issuerSnapshotJson: true },
       }),
     ).resolves.toMatchObject({ issuerSnapshotJson: { issuerUserName: "Database Faculty" } });

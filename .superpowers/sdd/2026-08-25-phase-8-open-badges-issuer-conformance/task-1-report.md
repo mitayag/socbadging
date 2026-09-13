@@ -34,14 +34,14 @@ Implemented. No Git repository is present, so no commit was created.
 
 The following official URLs were downloaded and reviewed on 2026-08-25. `apply_patch` normalizes line endings and terminal newlines, so the checked-in fixture digest is recorded separately where it differs from the remote byte stream; the parsed JSON content is unchanged.
 
-| URL | Official source SHA-256 | Checked-in fixture SHA-256 |
-| --- | --- | --- |
-| `https://www.w3.org/ns/credentials/v2` | `59955ced6697d61e03f2b2556febe5308ab16842846f5b586d7f1f7adec92734` | `91ed601715548afb33b32f1ffdfba6453cbd11e8a3df6d7419b889edee82a6fb` |
+| URL                                                          | Official source SHA-256                                            | Checked-in fixture SHA-256                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `https://www.w3.org/ns/credentials/v2`                       | `59955ced6697d61e03f2b2556febe5308ab16842846f5b586d7f1f7adec92734` | `91ed601715548afb33b32f1ffdfba6453cbd11e8a3df6d7419b889edee82a6fb` |
 | `https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json` | `3d34f4d4ef1bce691106e63798beb5e7b862ba841423f5ee1e53ab7ddf3bca84` | `3d34f4d4ef1bce691106e63798beb5e7b862ba841423f5ee1e53ab7ddf3bca84` |
-| `https://purl.imsglobal.org/spec/ob/v3p0/extensions.json` | `87c06c81bc2317663bf288d740d94fddd2818c4342b186270ff6371dfaa63f93` | `2d013f981d1f4516081a6a04e55468ba2b071d4153b794f19a79715c45a89a5e` |
-| `https://w3id.org/security/data-integrity/v2` | `67f21e6e33a6c14e5ccfd2fc7865f7474fb71a04af7e94136cb399dfac8ae8f4` | `0f77743daf5b4e8fc067fc5ba5b21044283053aa717fc6b0219843bed3b00363` |
-| `https://w3id.org/security/multikey/v1` | `ba2c182de2d92f7e47184bcca8fcf0beaee6d3986c527bf664c195bbc7c58597` | `ba2c182de2d92f7e47184bcca8fcf0beaee6d3986c527bf664c195bbc7c58597` |
-| `https://www.w3.org/ns/credentials/status/v1` | `fda5add353231e6a6884a46b12e6c75464281900cb348284d9c360f62381d9f7` | `fda5add353231e6a6884a46b12e6c75464281900cb348284d9c360f62381d9f7` |
+| `https://purl.imsglobal.org/spec/ob/v3p0/extensions.json`    | `87c06c81bc2317663bf288d740d94fddd2818c4342b186270ff6371dfaa63f93` | `2d013f981d1f4516081a6a04e55468ba2b071d4153b794f19a79715c45a89a5e` |
+| `https://w3id.org/security/data-integrity/v2`                | `67f21e6e33a6c14e5ccfd2fc7865f7474fb71a04af7e94136cb399dfac8ae8f4` | `0f77743daf5b4e8fc067fc5ba5b21044283053aa717fc6b0219843bed3b00363` |
+| `https://w3id.org/security/multikey/v1`                      | `ba2c182de2d92f7e47184bcca8fcf0beaee6d3986c527bf664c195bbc7c58597` | `ba2c182de2d92f7e47184bcca8fcf0beaee6d3986c527bf664c195bbc7c58597` |
+| `https://www.w3.org/ns/credentials/status/v1`                | `fda5add353231e6a6884a46b12e6c75464281900cb348284d9c360f62381d9f7` | `fda5add353231e6a6884a46b12e6c75464281900cb348284d9c360f62381d9f7` |
 
 ## Strict TDD evidence
 
@@ -75,15 +75,15 @@ During final gate execution, TypeScript exposed a Zod discriminated-union narrow
 
 ## Verification results
 
-| Command | Result |
-| --- | --- |
-| `npm test -- src/modules/open-badges/document-loader.test.ts src/modules/open-badges/proof.test.ts` | PASS — 2 files, 5 tests |
-| `npx prettier --check` for the four TypeScript files | PASS |
-| `npm run lint` | PASS — zero warnings/errors |
-| `npm run typecheck` | PASS |
-| `npm audit --omit=dev` | PASS — `found 0 vulnerabilities` |
-| `npm test` | PASS — 86 files, 516 tests |
-| `npm run build` | PASS — Next.js 16.3.0 production build completed |
+| Command                                                                                             | Result                                           |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `npm test -- src/modules/open-badges/document-loader.test.ts src/modules/open-badges/proof.test.ts` | PASS — 2 files, 5 tests                          |
+| `npx prettier --check` for the four TypeScript files                                                | PASS                                             |
+| `npm run lint`                                                                                      | PASS — zero warnings/errors                      |
+| `npm run typecheck`                                                                                 | PASS                                             |
+| `npm audit --omit=dev`                                                                              | PASS — `found 0 vulnerabilities`                 |
+| `npm test`                                                                                          | PASS — 86 files, 516 tests                       |
+| `npm run build`                                                                                     | PASS — Next.js 16.3.0 production build completed |
 
 `npm run format` was also run. It remains non-zero because two pre-existing, out-of-task Markdown files are not formatted: `.superpowers/sdd/2026-08-25-phase-8-open-badges-issuer-conformance/progress.md` and `docs/superpowers/plans/2026-08-25-phase-8-open-badges-issuer-conformance.md`. All Task 1 TypeScript source/test files are Prettier-clean. The JSON snapshots are intentionally kept as reviewed standards artifacts rather than re-formatted, because formatting changes their byte digests.
 

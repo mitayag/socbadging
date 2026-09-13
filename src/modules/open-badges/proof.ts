@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
 
+import { DataIntegrityProof } from "@digitalbazaar/data-integrity";
 import * as Ed25519Multikey from "@digitalbazaar/ed25519-multikey";
+import { cryptosuite } from "@digitalbazaar/eddsa-rdfc-2022-cryptosuite";
 import { z } from "zod";
 
 import { loadAllowlistedDocument } from "./document-loader";
@@ -124,14 +126,6 @@ const officialVectorControllerDocument = {
   assertionMethod: [officialVectorVerificationMethod],
 };
 
-type DataIntegrityPackage = {
-  DataIntegrityProof: new (options: { cryptosuite: object }) => object;
-};
-
-type CryptosuitePackage = {
-  cryptosuite: object;
-};
-
 type JsonLdSignaturesPackage = {
   verify: (
     document: object,
@@ -145,10 +139,6 @@ type JsonLdSignaturesPackage = {
     AssertionProofPurpose: new (options?: { controller?: object }) => object;
   };
 };
-
-async function loadEsmPackage<T>(packageName: string): Promise<T> {
-  return (await import(packageName)) as T;
-}
 
 const require = createRequire(import.meta.url);
 const jsonldSignatures = require("jsonld-signatures") as JsonLdSignaturesPackage;
@@ -184,10 +174,6 @@ export async function verifyEddsaRdfc2022Proof(
   }
 
   try {
-    const [{ DataIntegrityProof }, { cryptosuite }] = await Promise.all([
-      loadEsmPackage<DataIntegrityPackage>("@digitalbazaar/data-integrity"),
-      loadEsmPackage<CryptosuitePackage>("@digitalbazaar/eddsa-rdfc-2022-cryptosuite"),
-    ]);
     const suite = new DataIntegrityProof({ cryptosuite });
     const purpose = new jsonldSignatures.purposes.AssertionProofPurpose({
       controller: {
@@ -232,10 +218,6 @@ export async function verifyOfficialEddsaRdfc2022ProofVector(document: unknown):
     return false;
   }
 
-  const [{ DataIntegrityProof }, { cryptosuite }] = await Promise.all([
-    loadEsmPackage<DataIntegrityPackage>("@digitalbazaar/data-integrity"),
-    loadEsmPackage<CryptosuitePackage>("@digitalbazaar/eddsa-rdfc-2022-cryptosuite"),
-  ]);
   const suite = new DataIntegrityProof({ cryptosuite });
   const purpose = new jsonldSignatures.purposes.AssertionProofPurpose({
     controller: officialVectorControllerDocument,

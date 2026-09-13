@@ -45,7 +45,7 @@ Batch uploads accept `.csv` and `.xlsx` files up to 2 MiB and 5,000 data rows. S
 
 Each issued credential has an opaque public verification URL at `/credentials/:publicId`. The public page remains available for active, expired, and revoked credentials while showing the current lifecycle status. It exposes only the recipient's first name plus last initial; it never displays the recipient email, student number, internal issuance ID, roster data, or administrative audit data.
 
-Anonymous visitors can view or download the privacy-safe `application/ld+json` representation at `/api/credentials/:publicId` and `/api/credentials/:publicId/download`. The representation uses Open Badges 3.0 concepts, includes current lifecycle metadata, and explicitly states that it is unsigned and not certified. Public credential HTML and JSON routes use `private, no-store` cache behavior and a MariaDB-backed shared rate limit. Forwarding headers are ignored unless `TRUST_PROXY=true`; enable it only behind a trusted proxy that overwrites `X-Forwarded-For`.
+Anonymous visitors can view or download the privacy-safe `application/ld+json` representation at `/api/credentials/:publicId` and `/api/credentials/:publicId/download`. New Phase 8 credentials contain an EdDSA Data Integrity proof and a signed Bitstring Status List reference; the public verifier validates the persisted issuer key, proof, and current revocation status. Legacy credentials remain available but are clearly identified as lacking cryptographic proof. Public credential HTML and JSON routes use `private, no-store` cache behavior and a MariaDB-backed shared rate limit. Forwarding headers are ignored unless `TRUST_PROXY=true`; enable it only behind a trusted proxy that overwrites `X-Forwarded-For`.
 
 When sharing is enabled in System Settings, visitors can copy the verification URL and use native share (when supported), LinkedIn, Facebook, X, or their email client. Email sharing only opens a `mailto:` composition link; it does not send SMTP notification email.
 
@@ -97,9 +97,9 @@ The checked-in Playwright regression suite creates, uses, and removes its own ra
 E2E_CONFIRM_DISPOSABLE_DATABASE=true TEST_DATABASE_URL=mysql://badging:<local-test-password>@127.0.0.1:3307/badging npm run test:e2e
 ```
 
-The test command starts a temporary app at `http://127.0.0.1:3100` and exercises the anonymous credential lifecycle, privacy behavior, public headers/rate limit, Faculty revocation and notification status, Administrator settings/notification retry/audit access, responsive two-line branding, and non-owner authorization at desktop and 390×844 mobile viewports. It refuses to run until the explicit disposable-database confirmation is supplied.
+The test command starts a temporary app at `http://127.0.0.1:3100` and exercises signed individual and previewed batch issuance, proof and status-list verification, tamper/expiration/replacement/legacy states, signer outage recovery, anonymous privacy behavior, public headers/rate limiting, Faculty revocation and notification status, Administrator signing settings, responsive two-line branding, and non-owner authorization at desktop and 390×844 mobile viewports. It refuses to run until the explicit disposable-database confirmation is supplied.
 
-Phase 7 traceability and remaining boundaries are recorded in [the Phase 7 matrix](docs/traceability/phase-7-matrix.md) and [known limitations](docs/operations/known-limitations.md).
+Current requirement mappings and Phase 8 evidence are recorded in [the traceability matrix](docs/TRACEABILITY.md) and [local readiness report](docs/conformance/open-badges-3-local-readiness.md). Production HTTPS activation and official 1EdTech conformance submission remain external milestones; local readiness does not make this product certified. Phase 7 history remains in [the Phase 7 matrix](docs/traceability/phase-7-matrix.md), and operational boundaries remain in [known limitations](docs/operations/known-limitations.md).
 
 ## Security boundaries
 

@@ -8,6 +8,7 @@ coverage/
 playwright-report/
 test-results/
 .playwright-e2e-fixture.json
+.playwright-e2e-signer.json
 storage/*
 !storage/.gitkeep
 *.log
