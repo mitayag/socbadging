@@ -33,6 +33,16 @@ const signedList = {
   },
 };
 const signedListDigest = createHash("sha256").update(JSON.stringify(signedList)).digest("hex");
+const revokedSignedList = {
+  ...signedList,
+  credentialSubject: {
+    ...signedList.credentialSubject,
+    encodedList: encodeRevocationList([9], 131_072),
+  },
+};
+const revokedSignedListDigest = createHash("sha256")
+  .update(JSON.stringify(revokedSignedList))
+  .digest("hex");
 
 function currentList(overrides: Record<string, unknown> = {}) {
   return {
@@ -118,6 +128,22 @@ describe("GET /api/status-lists/[listId]", () => {
     const response = await listRequest();
 
     expect(response.status).toBe(503);
+  });
+
+  it("returns the signed list when a revoked allocation was published by the current version", async () => {
+    state.findUnique.mockResolvedValue(
+      currentList({
+        signedCredentialJson: revokedSignedList,
+        digest: revokedSignedListDigest,
+        version: 2,
+        allocations: [{ index: 9, isRevoked: true, statusListVersion: 2 }],
+      }),
+    );
+
+    const response = await listRequest();
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(revokedSignedList);
   });
 
   it("returns 503 when an allocation's current bit differs from the signed status list", async () => {

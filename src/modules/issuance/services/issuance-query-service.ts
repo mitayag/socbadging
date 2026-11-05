@@ -3,7 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { requireAuthenticated, requireRole } from "@/modules/identity/policies/authorization";
+import { requireRole, requireStaff } from "@/modules/identity/policies/authorization";
 import type { Actor } from "@/modules/identity/types";
 import type {
   AchievementSnapshot,
@@ -20,7 +20,9 @@ import {
   RecipientSnapshotSchema,
 } from "./snapshot-schemas";
 
-const pageSize = 20;
+export const issuancePageSizes = [5, 10, 25, 50] as const;
+export type IssuancePageSize = (typeof issuancePageSizes)[number];
+export type IssuanceSort = "issued_desc" | "issued_asc" | "status";
 
 const issuanceFiltersSchema = z.object({
   query: z.string().trim().max(191).optional().catch(undefined),
@@ -28,11 +30,15 @@ const issuanceFiltersSchema = z.object({
   classId: z.string().trim().min(1).max(191).optional().catch(undefined),
   badgeTemplateId: z.string().trim().min(1).max(191).optional().catch(undefined),
   page: z.coerce.number().int().min(1).catch(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).catch(5).default(5),
+  sort: z.enum(["issued_desc", "issued_asc", "status"]).catch("issued_desc").default("issued_desc"),
 });
 
 export type IssuanceFilters = z.input<typeof issuanceFiltersSchema>;
 export type NormalizedIssuanceFilters = z.output<typeof issuanceFiltersSchema>;
-export type IssuanceListRecord = Omit<IssuanceListItem, "recipientEmail">;
+export type IssuanceListRecord = Omit<IssuanceListItem, "recipientEmail"> & {
+  dataIntegrity?: "INVALID";
+};
 export type IssuanceExportRow = Pick<
   IssuanceListItem,
   | "publicId"
@@ -51,11 +57,13 @@ export type IssuanceExportRow = Pick<
 
 export type IssuanceListResult = {
   items: IssuanceListRecord[];
+  filters: NormalizedIssuanceFilters;
   page: number;
-  pageSize: typeof pageSize;
+  pageSize: IssuancePageSize;
   total: number;
   totalPages: number;
   hasNext: boolean;
+  hasPrevious: boolean;
 };
 
 export type IssuanceDetail = {
@@ -142,26 +150,60 @@ function toDetail(record: IssuanceRecord): IssuanceDetail {
   };
 }
 
-function toListRecord(record: IssuanceRecord): IssuanceListRecord {
-  const detail = toDetail(record);
+function invalidListRecord(record: IssuanceRecord): IssuanceListRecord {
+  console.warn("issuance.list.invalid_snapshot", {
+    issuanceId: record.id,
+    recipientValid: RecipientSnapshotSchema.safeParse(record.recipientSnapshotJson).success,
+    achievementValid: AchievementSnapshotSchema.safeParse(record.achievementSnapshotJson).success,
+    issuerValid: IssuerSnapshotSchema.safeParse(record.issuerSnapshotJson).success,
+  });
   return {
-    id: detail.id,
-    publicId: detail.publicId,
-    status: detail.status,
-    issuedAt: detail.issuedAt,
-    expiresAt: detail.expiresAt,
-    classId: detail.classId,
-    classCourseCode: detail.achievement.class.courseCode,
-    classTitle: detail.achievement.class.title,
-    classSection: detail.achievement.class.section,
-    badgeTemplateId: detail.badgeTemplateId,
-    badgeName: detail.achievement.name,
-    badgeImageUrl: detail.achievement.image.id,
-    studentId: detail.studentId,
-    studentNumber: detail.recipient.studentNumber,
-    recipientDisplayName: detail.recipient.displayName,
-    issuerUserId: detail.issuerUserId,
-    issuerUserName: detail.issuer.issuerUserName,
+    id: record.id,
+    publicId: record.publicId,
+    status: record.status,
+    issuedAt: record.issuedAt.toISOString(),
+    expiresAt: record.expiresAt?.toISOString() ?? null,
+    classId: record.classId,
+    classCourseCode: "—",
+    classTitle: "Snapshot unavailable",
+    classSection: "—",
+    badgeTemplateId: record.badgeTemplateId,
+    badgeName: "Credential data unavailable",
+    badgeImageUrl: "",
+    studentId: record.studentId,
+    studentNumber: "—",
+    recipientDisplayName: "Unavailable record",
+    issuerUserId: record.issuerUserId,
+    issuerUserName: "System",
+    dataIntegrity: "INVALID",
+  };
+}
+
+function toListRecord(record: IssuanceRecord): IssuanceListRecord {
+  const recipient = RecipientSnapshotSchema.safeParse(record.recipientSnapshotJson);
+  const achievement = AchievementSnapshotSchema.safeParse(record.achievementSnapshotJson);
+  const issuer = IssuerSnapshotSchema.safeParse(record.issuerSnapshotJson);
+  if (!recipient.success || !achievement.success || !issuer.success) {
+    return invalidListRecord(record);
+  }
+  return {
+    id: record.id,
+    publicId: record.publicId,
+    status: record.status,
+    issuedAt: record.issuedAt.toISOString(),
+    expiresAt: record.expiresAt?.toISOString() ?? null,
+    classId: record.classId,
+    classCourseCode: achievement.data.class.courseCode,
+    classTitle: achievement.data.class.title,
+    classSection: achievement.data.class.section,
+    badgeTemplateId: record.badgeTemplateId,
+    badgeName: achievement.data.name,
+    badgeImageUrl: achievement.data.image.id,
+    studentId: record.studentId,
+    studentNumber: recipient.data.studentNumber,
+    recipientDisplayName: recipient.data.displayName,
+    issuerUserId: record.issuerUserId,
+    issuerUserName: issuer.data.issuerUserName,
   };
 }
 
@@ -192,32 +234,45 @@ function scopeWhere(actor: Actor, filters: NormalizedIssuanceFilters) {
   return where;
 }
 
+function orderByFor(sort: IssuanceSort): Prisma.BadgeIssuanceOrderByWithRelationInput[] {
+  if (sort === "issued_asc") return [{ issuedAt: "asc" }, { id: "asc" }];
+  if (sort === "status") {
+    return [{ status: "asc" }, { issuedAt: "desc" }, { id: "desc" }];
+  }
+  return [{ issuedAt: "desc" }, { id: "desc" }];
+}
+
 export async function listIssuances(
   actor: Actor | null | undefined,
   rawFilters: IssuanceFilters = {},
 ): Promise<IssuanceListResult> {
-  const authenticated = requireAuthenticated(actor);
-  const filters = normalizeIssuanceFilters(rawFilters);
+  const authenticated = requireStaff(actor);
+  const raw = normalizeIssuanceFilters(rawFilters);
+  const pageSize = issuancePageSizes.includes(raw.pageSize as IssuancePageSize)
+    ? (raw.pageSize as IssuancePageSize)
+    : 5;
+  const filters = { ...raw, pageSize };
   const where = scopeWhere(authenticated, filters);
-  const [rows, total] = await Promise.all([
-    prisma.badgeIssuance.findMany({
-      where,
-      select: issuanceSelect,
-      orderBy: [{ issuedAt: "desc" }, { id: "desc" }],
-      skip: (filters.page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.badgeIssuance.count({ where }),
-  ]);
-  const totalPages = Math.ceil(total / pageSize);
+  const total = await prisma.badgeIssuance.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(1, filters.page), totalPages);
+  const rows = await prisma.badgeIssuance.findMany({
+    where,
+    select: issuanceSelect,
+    orderBy: orderByFor(filters.sort),
+    skip: (page - 1) * pageSize,
+    take: pageSize,
+  });
 
   return {
     items: rows.map(toListRecord),
-    page: filters.page,
+    filters: { ...filters, page },
+    page,
     pageSize,
     total,
     totalPages,
-    hasNext: filters.page < totalPages,
+    hasNext: page < totalPages,
+    hasPrevious: page > 1,
   };
 }
 
@@ -225,7 +280,7 @@ export async function getIssuanceDetail(
   actor: Actor | null | undefined,
   issuanceId: string,
 ): Promise<IssuanceDetail> {
-  const authenticated = requireAuthenticated(actor);
+  const authenticated = requireStaff(actor);
   const id = z.string().trim().min(1).max(191).safeParse(issuanceId);
   if (!id.success) throw new IssuanceNotFoundError();
   const record = await prisma.badgeIssuance.findFirst({
@@ -236,7 +291,11 @@ export async function getIssuanceDetail(
     select: issuanceSelect,
   });
   if (!record) throw new IssuanceNotFoundError();
-  return toDetail(record);
+  try {
+    return toDetail(record);
+  } catch {
+    throw new IssuanceNotFoundError();
+  }
 }
 
 export async function listIssueOptions(
@@ -286,20 +345,19 @@ export async function listIssuanceExportRows(
   actor: Actor | null | undefined,
   rawFilters: IssuanceFilters = {},
 ): Promise<IssuanceExportRow[]> {
-  const authenticated = requireAuthenticated(actor);
+  const authenticated = requireStaff(actor);
   const filters = normalizeIssuanceFilters(rawFilters);
   const rows = await prisma.badgeIssuance.findMany({
     where: scopeWhere(authenticated, filters),
     select: issuanceSelect,
-    orderBy: [{ issuedAt: "desc" }, { id: "desc" }],
+    orderBy: orderByFor(filters.sort),
   });
   return rows.map((record) => {
     const item = toListRecord(record);
-    const recipient = parseSnapshot(
-      RecipientSnapshotSchema,
-      record.recipientSnapshotJson,
-      "recipient",
-    );
-    return { ...item, recipientEmail: recipient.email };
+    const recipient = RecipientSnapshotSchema.safeParse(record.recipientSnapshotJson);
+    return {
+      ...item,
+      recipientEmail: recipient.success ? recipient.data.email : "",
+    };
   });
 }

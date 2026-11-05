@@ -11,6 +11,14 @@ describe("SMTP retry policy", () => {
 
   it("uses bounded exponential backoff", () => {
     const now = new Date("2026-08-23T00:00:00Z");
-    expect(calculateNextAttempt(now, 3, 60, 3600).toISOString()).toBe("2026-08-23T00:04:00.000Z");
+    expect(calculateNextAttempt(now, 3, 60, 3600, { jitterRatio: 0 }).toISOString()).toBe(
+      "2026-08-23T00:04:00.000Z",
+    );
+    expect(
+      calculateNextAttempt(now, 3, 60, 3600, { jitterRatio: 0.2, random: () => 1 }).toISOString(),
+    ).toBe("2026-08-23T00:04:48.000Z");
+    expect(
+      calculateNextAttempt(now, 3, 60, 3600, { jitterRatio: 0.2, random: () => 0 }).toISOString(),
+    ).toBe("2026-08-23T00:03:12.000Z");
   });
 });

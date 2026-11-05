@@ -18,7 +18,7 @@ vi.mock("@/components/verification/public-credential", () => ({
 }));
 vi.mock("next/navigation", () => ({ notFound: state.notFound }));
 
-import PublicCredentialPage from "./page";
+import PublicCredentialPage, { generateMetadata } from "./page";
 
 const publicId = "abcdefghijklmnopqrstuvwxyzABCDEF";
 function pageParams(value: unknown) {
@@ -35,6 +35,28 @@ describe("PublicCredentialPage boundaries", () => {
     await PublicCredentialPage(pageParams({ publicId }));
 
     expect(state.getPublicCredential).toHaveBeenCalledWith(publicId);
+  });
+
+  it("publishes safe social metadata without recipient identity", async () => {
+    state.getPublicCredential.mockResolvedValueOnce({
+      publicId,
+      status: "ACTIVE",
+      achievement: {
+        name: "Secure Systems",
+        image: { id: "https://badges.example.test/badge.png" },
+      },
+      issuer: { name: "HAU SOC" },
+      credential: {
+        id: "https://badges.example.test/credentials/abcdefghijklmnopqrstuvwxyzABCDEF",
+      },
+      recipientDisplayName: "Maria D.",
+    } as unknown as PublicCredential);
+    const metadata = await generateMetadata(pageParams({ publicId }));
+    expect(metadata.title).toBe("Secure Systems — HAU SOC");
+    expect(metadata.description).not.toContain("Maria");
+    expect(metadata.openGraph?.images).toEqual([
+      { url: "https://badges.example.test/badge.png", alt: "Secure Systems badge artwork" },
+    ]);
   });
 
   it.each([

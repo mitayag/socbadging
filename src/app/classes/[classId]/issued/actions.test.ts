@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AuthorizationError } from "@/modules/identity/policies/authorization";
 import type { Actor } from "@/modules/identity/types";
 import {
+  IssuanceConfigurationError,
+  IssuanceValidationError,
   SIGNER_UNAVAILABLE_MESSAGE,
   SignedIssuanceError,
 } from "@/modules/issuance/services/signed-issuance-service";
@@ -68,15 +69,19 @@ describe("issueBadgeAction", () => {
   ])("rejects a %s caller before the issuance service runs", async (_caseName, actor) => {
     state.actor = actor;
 
-    await expect(issueBadgeAction(initialState, issueForm())).rejects.toBeInstanceOf(
-      AuthorizationError,
-    );
+    await expect(issueBadgeAction(initialState, issueForm())).resolves.toEqual({
+      status: "error",
+      message: "You are not authorized to issue this badge.",
+    });
 
     expect(state.issueBadge).not.toHaveBeenCalled();
   });
 
   it("rejects malformed FormData before the issuance service runs", async () => {
-    await expect(issueBadgeAction(initialState, issueForm({ studentId: "  " }))).rejects.toThrow();
+    await expect(issueBadgeAction(initialState, issueForm({ studentId: "  " }))).resolves.toEqual({
+      status: "error",
+      message: "Select a valid class, badge template, and student.",
+    });
 
     expect(state.issueBadge).not.toHaveBeenCalled();
   });
@@ -130,5 +135,42 @@ describe("issueBadgeAction", () => {
       message: failure.message,
     });
     expect(failure.message).not.toContain("INVALID_PROOF");
+  });
+
+  it("returns a safe configuration error instead of crashing the page", async () => {
+    state.issueBadge.mockRejectedValueOnce(
+      new IssuanceConfigurationError(
+        "Credential signing is not configured. No badge was issued. Contact an administrator.",
+      ),
+    );
+
+    await expect(issueBadgeAction(initialState, issueForm())).resolves.toEqual({
+      status: "error",
+      message:
+        "Credential signing is not configured. No badge was issued. Contact an administrator.",
+    });
+    expect(state.redirect).not.toHaveBeenCalled();
+  });
+
+  it("returns a safe validation error for inactive or unauthorized issuance sources", async () => {
+    state.issueBadge.mockRejectedValueOnce(
+      new IssuanceValidationError("Student is not actively enrolled in this class"),
+    );
+
+    await expect(issueBadgeAction(initialState, issueForm())).resolves.toEqual({
+      status: "error",
+      message: "Student is not actively enrolled in this class",
+    });
+    expect(state.redirect).not.toHaveBeenCalled();
+  });
+
+  it("returns a generic safe message for an unexpected database or signing failure", async () => {
+    state.issueBadge.mockRejectedValueOnce(new Error("database connection lost"));
+
+    await expect(issueBadgeAction(initialState, issueForm())).resolves.toEqual({
+      status: "error",
+      message: "The badge could not be issued. No credential was created. Try again.",
+    });
+    expect(state.redirect).not.toHaveBeenCalled();
   });
 });

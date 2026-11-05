@@ -17,7 +17,7 @@ describe("notification queries with MariaDB", () => {
   afterEach(removeNotificationFixture);
 
   it("returns masked global Administrator data and owner-scoped Faculty status", async () => {
-    const list = await listNotifications(notificationAdmin);
+    const list = await listNotifications(notificationAdmin, { query: "ada.private@example.test" });
     expect(list.items).toHaveLength(1);
     expect(list.items[0]?.maskedRecipientEmail).toBe("a***@example.test");
     await expect(getIssuanceNotificationStatus(notificationFaculty, "p7-issuance")).resolves.toBe(

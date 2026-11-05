@@ -15,6 +15,7 @@ export default async function ClassSettingsPage({
 }) {
   const actor = await getCurrentActor();
   if (!actor) redirect("/login");
+  if (actor.role === "STUDENT") redirect("/student");
 
   const { classId } = await params;
   const item = await getClassWorkspace(actor, classId);

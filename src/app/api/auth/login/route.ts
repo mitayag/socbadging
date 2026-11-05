@@ -55,7 +55,17 @@ export async function POST(request: Request) {
   await prisma.session.create({
     data: { sessionToken: hashSessionToken(token), userId: actor.id, expires },
   });
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({
+    ok: true,
+    role: actor.role,
+    redirectTo:
+      actor.role === "STUDENT"
+        ? actor.mustChangePassword
+          ? "/student/change-password"
+          : "/student"
+        : "/dashboard",
+  });
+  response.headers.set("Cache-Control", "private, no-store");
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: new URL(environment.APP_URL).protocol === "https:",

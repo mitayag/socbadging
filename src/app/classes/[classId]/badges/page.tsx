@@ -78,6 +78,7 @@ export default async function BadgesPage({
 }) {
   const actor = await getCurrentActor();
   if (!actor) redirect("/login");
+  if (actor.role === "STUDENT") redirect("/student");
   const classId = (await params).classId;
   const q = await searchParams;
   const status = q.status === "ACTIVE" || q.status === "ARCHIVED" ? q.status : undefined;

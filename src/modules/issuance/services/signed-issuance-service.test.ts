@@ -36,9 +36,10 @@ vi.mock("@/platform/db/prisma", () => ({
   },
 }));
 
-vi.mock("./status-allocation-service", () => ({
-  reserveUnassignedStatusAllocation: mocks.reserveStatus,
-}));
+vi.mock("./status-allocation-service", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./status-allocation-service")>();
+  return { ...original, reserveUnassignedStatusAllocation: mocks.reserveStatus };
+});
 
 vi.mock("./credential-snapshot", async (importOriginal) => {
   const original = await importOriginal<typeof import("./credential-snapshot")>();
@@ -46,6 +47,7 @@ vi.mock("./credential-snapshot", async (importOriginal) => {
 });
 
 import {
+  IssuanceConfigurationError,
   SIGNER_UNAVAILABLE_MESSAGE,
   SignedIssuanceError,
   commitPreparedSignedIssuance,
@@ -368,6 +370,62 @@ describe("prepareSignedIssuance", () => {
     expect(Object.isFrozen(prepared)).toBe(true);
     expect(Object.isFrozen(prepared.signedDocument)).toBe(true);
     expect(signer.verifyCredential).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an inactive badge template before signing", async () => {
+    mocks.badgeFindUnique.mockResolvedValue({ ...badgeTemplate, status: "ARCHIVED" });
+    const signer = createSigner();
+
+    await expect(prepareSignedIssuance({ actor: faculty, ...request }, signer)).rejects.toThrow(
+      "Badge template is not active",
+    );
+    expect(signer.signCredential).not.toHaveBeenCalled();
+  });
+
+  it("rejects a removed student enrollment before signing", async () => {
+    mocks.enrollmentFindUnique.mockResolvedValue({
+      ...enrollment,
+      enrollmentStatus: "REMOVED",
+    });
+    const signer = createSigner();
+
+    await expect(prepareSignedIssuance({ actor: faculty, ...request }, signer)).rejects.toThrow(
+      "Student is not actively enrolled in this class",
+    );
+    expect(signer.signCredential).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-owner Faculty actor before signing", async () => {
+    mocks.classFindUnique.mockResolvedValue({ ...classRecord, ownerUserId: "faculty-2" });
+    const signer = createSigner();
+
+    await expect(
+      prepareSignedIssuance({ actor: faculty, ...request }, signer),
+    ).rejects.toBeInstanceOf(AuthorizationError);
+    expect(signer.signCredential).not.toHaveBeenCalled();
+  });
+
+  it("maps a missing active signing key to a safe configuration error", async () => {
+    mocks.signingKeyFindMany.mockResolvedValue([]);
+    const signer = createSigner();
+
+    await expect(
+      prepareSignedIssuance({ actor: faculty, ...request }, signer),
+    ).rejects.toBeInstanceOf(IssuanceConfigurationError);
+    expect(signer.signCredential).not.toHaveBeenCalled();
+  });
+
+  it("maps unavailable status-list configuration to a safe configuration error", async () => {
+    const { StatusAllocationUnavailableError } = await import("./status-allocation-service");
+    mocks.reserveStatus.mockRejectedValue(
+      new StatusAllocationUnavailableError("No credential status list has capacity"),
+    );
+    const signer = createSigner();
+
+    await expect(
+      prepareSignedIssuance({ actor: faculty, ...request }, signer),
+    ).rejects.toBeInstanceOf(IssuanceConfigurationError);
+    expect(signer.signCredential).not.toHaveBeenCalled();
   });
 
   it("maps signer timeout to the exact retryable message and creates no visible record", async () => {

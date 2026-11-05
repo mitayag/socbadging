@@ -194,6 +194,39 @@ describe("regenerateSignedStatusList MariaDB transactions", () => {
     expect(readRevocationStatus(signed.credentialSubject.encodedList, 1)).toBe(false);
   });
 
+  it("synchronizes allocation versions and serves the published list through the public route", async () => {
+    await prisma.credentialStatusAllocation.update({
+      where: { issuanceId: fixture.issuanceIds[0] },
+      data: { isRevoked: true, revokedAt: new Date("2026-08-25T02:00:00.000Z") },
+    });
+
+    const signed = await prisma.$transaction((tx) =>
+      regenerateSignedStatusList(tx, fixture.listId, createSigner()),
+    );
+    const allocations = await prisma.credentialStatusAllocation.findMany({
+      where: { statusListId: fixture.listId },
+      select: { index: true, isRevoked: true, statusListVersion: true },
+      orderBy: { index: "asc" },
+    });
+    expect(allocations).toEqual([
+      { index: 0, isRevoked: true, statusListVersion: 1 },
+      { index: 1, isRevoked: false, statusListVersion: 1 },
+    ]);
+
+    const { GET } = await import("@/app/api/status-lists/[listId]/route");
+    const response = await GET(
+      new Request(`https://badges.example.test/api/status-lists/${fixture.listId}`),
+      { params: Promise.resolve({ listId: fixture.listId }) },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      credentialSubject: { encodedList: string };
+    };
+    expect(readRevocationStatus(body.credentialSubject.encodedList, 0)).toBe(true);
+    expect(readRevocationStatus(body.credentialSubject.encodedList, 1)).toBe(false);
+    expect(body).toEqual(signed);
+  });
+
   it("stores no partial signed list when the signer fails", async () => {
     const failingSigner: StatusListSigner = {
       signCredential: async () => {

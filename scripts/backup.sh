@@ -21,9 +21,14 @@ case "$OUTPUT" in /*) ;; *) echo "Backup output must be an absolute path." >&2; 
 mkdir -m 700 "$OUTPUT"
 trap 'rm -f "$OUTPUT/database.sql.partial" "$OUTPUT/media.tar.gz.partial"' EXIT INT TERM
 
-docker compose -p "$PROJECT" exec -T db sh -lc \
-  'exec mariadb-dump --single-transaction --routines --triggers --hex-blob -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"' \
-  > "$OUTPUT/database.sql.partial"
+docker compose -p "$PROJECT" exec -T db sh -lc '
+  if [ -n "${MARIADB_PASSWORD_FILE:-}" ] && [ -f "$MARIADB_PASSWORD_FILE" ]; then
+    password="$(cat "$MARIADB_PASSWORD_FILE")"
+  else
+    password="${MARIADB_PASSWORD:-}"
+  fi
+  exec mariadb-dump --single-transaction --routines --triggers --hex-blob -u"$MARIADB_USER" -p"$password" "$MARIADB_DATABASE"
+' > "$OUTPUT/database.sql.partial"
 mv "$OUTPUT/database.sql.partial" "$OUTPUT/database.sql"
 
 MEDIA_VOLUME="${PROJECT}_media_data"

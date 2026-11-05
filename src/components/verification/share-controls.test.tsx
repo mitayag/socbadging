@@ -47,6 +47,17 @@ describe("ShareControls", () => {
     expect(document.body.textContent).not.toContain("Maria");
   });
 
+  it("renders a downloadable QR code for public verification", () => {
+    render(<ShareControls {...props} qrSrc="/api/credentials/abc_DEF-123/qr" />);
+    expect(
+      screen.getByRole("img", { name: "QR code for the public credential verification page" }),
+    ).toHaveAttribute("src", "/api/credentials/abc_DEF-123/qr");
+    expect(screen.getByRole("link", { name: "Download QR Code" })).toHaveAttribute(
+      "href",
+      "/api/credentials/abc_DEF-123/qr",
+    );
+  });
+
   it("announces clipboard success", async () => {
     const user = userEvent.setup();
     render(<ShareControls {...props} />);

@@ -24,6 +24,14 @@ export function requireRole(actor: Actor | null | undefined, allowed: Role | Rol
   return authenticated;
 }
 
+export function requireStaff(actor: Actor | null | undefined): Actor {
+  return requireRole(actor, ["ADMIN", "FACULTY"]);
+}
+
+export function requireStudent(actor: Actor | null | undefined): Actor {
+  return requireRole(actor, "STUDENT");
+}
+
 export function requireClassOwner(actor: Actor | null | undefined, ownerUserId: string): Actor {
   const authenticated = requireRole(actor, "FACULTY");
   if (authenticated.id !== ownerUserId) {

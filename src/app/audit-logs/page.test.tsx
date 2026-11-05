@@ -42,15 +42,25 @@ describe("AuditLogsPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     state.actor = administrator;
-    state.listAuditLogs.mockResolvedValue([]);
+    state.listAuditLogs.mockResolvedValue({
+      items: [],
+      filters: { page: 1, pageSize: 5 },
+      page: 1,
+      pageSize: 5,
+      total: 0,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
+      facets: { entityTypes: [], actions: [] },
+    });
   });
 
   it("renders the Administrator audit log surface", async () => {
-    render(await AuditLogsPage());
+    render(await AuditLogsPage({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByRole("heading", { name: "Audit Logs" })).toBeInTheDocument();
     expect(screen.getByText("Audit Log List")).toBeInTheDocument();
-    expect(state.listAuditLogs).toHaveBeenCalledWith(administrator);
+    expect(state.listAuditLogs).toHaveBeenCalledWith(administrator, {});
   });
 
   it("uses a uniform not-found result when a non-Administrator is denied", async () => {
@@ -59,6 +69,10 @@ describe("AuditLogsPage", () => {
       new AuthorizationError("Administrator access required"),
     );
 
-    await expect(AuditLogsPage()).rejects.toThrow("NOT_FOUND");
+    await expect(
+      AuditLogsPage({
+        searchParams: Promise.resolve({ query: "badge", page: "2", pageSize: "10" }),
+      }),
+    ).rejects.toThrow("NOT_FOUND");
   });
 });

@@ -1,0 +1,15 @@
+# Paste into NPM Proxy Host -> Advanced.
+# NPM already generates the TLS/server/proxy blocks; this example adds only app-specific limits.
+# Do not replace NPM's generated proxy headers or certificate directives.
+
+# Badge artwork and spreadsheet/import previews can exceed NPM's 1 MB default.
+client_max_body_size 8m;
+
+# Allow issuer/status-list and PDF generation requests to finish.
+proxy_read_timeout 120s;
+proxy_send_timeout 120s;
+
+# Optional: enable only after the HTTPS hostname has been stable and validated.
+# add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+# WebSockets are not required by this application. Leave NPM "Websockets Support" off.

@@ -23,7 +23,7 @@ const signingKeyInputSchema = z
 type CurrentAdministrator = {
   id: string;
   role: "ADMIN" | "FACULTY";
-  status: "ACTIVE" | "SUSPENDED" | "DELETED";
+  status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
   deletedAt: Date | null;
 };
 

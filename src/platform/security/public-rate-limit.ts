@@ -25,3 +25,8 @@ export async function consumePublicCredentialPageRateLimit(request: Request, pub
   const client = getClientRateLimitKey(request, { trustProxy: getServerEnv().TRUST_PROXY });
   return consumeRateLimit({ policy: "public-html", key: `${client}\u0000${publicId}` });
 }
+
+export async function consumePublicCredentialAssetRateLimit(request: Request, publicId: string) {
+  const client = getClientRateLimitKey(request, { trustProxy: getServerEnv().TRUST_PROXY });
+  return consumeRateLimit({ policy: "export", key: `${client}\u0000${publicId}` });
+}

@@ -10,6 +10,7 @@ describe("getNavigationItems", () => {
       "Issued Badges",
       "Notifications",
       "Faculty Management",
+      "Students",
       "Audit Logs",
       "Settings",
     ]);
@@ -36,6 +37,17 @@ describe("getNavigationItems", () => {
         },
       );
     }
+  });
+
+  it("exposes only student destinations to Students", () => {
+    expect(getNavigationItems("STUDENT").map((item) => item.label)).toEqual([
+      "Overview",
+      "My Badges",
+      "Notifications",
+      "Profile",
+      "Help",
+    ]);
+    expect(getNavigationItems("STUDENT").some((item) => item.label === "Settings")).toBe(false);
   });
 
   it("routes Administrator audit logs and settings to their available server-authorized pages", () => {

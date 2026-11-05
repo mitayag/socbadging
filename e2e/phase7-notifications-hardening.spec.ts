@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "./test-base";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -30,9 +32,14 @@ async function login(page: Page, email: string, password: string) {
 
 async function expectTwoLineBrand(page: Page) {
   let institution = page.locator('[data-brand-line="institution"]:visible');
+  const navigationToggle = page.getByLabel("Open navigation");
+  await expect
+    .poll(async () => (await institution.count()) > 0 || (await navigationToggle.isVisible()), {
+      timeout: 15_000,
+    })
+    .toBe(true);
   if ((await institution.count()) === 0) {
-    const navigationToggle = page.getByLabel("Open navigation");
-    if (await navigationToggle.isVisible()) await navigationToggle.click();
+    await navigationToggle.click();
     institution = page.locator('[data-brand-line="institution"]:visible');
   }
   const product = page.locator('[data-brand-line="product"]:visible');
@@ -83,9 +90,10 @@ test.describe.serial("Phase 7 notification hardening", () => {
   test("lets an Administrator inspect, retry, and audit a privacy-safe failed delivery", async ({
     page,
   }, testInfo) => {
+    page.on("dialog", (dialog) => dialog.accept());
     const owned = ownedFixture(testInfo.project.name);
     await login(page, fixture.E2E_ADMIN_EMAIL, fixture.E2E_ADMIN_PASSWORD);
-    await page.goto("/notifications");
+    await page.goto("/notifications?status=FAILED&pageSize=50");
     await expect(page.getByRole("heading", { name: "Email Notifications" })).toBeVisible();
     await expect(page.getByText("e***@example.test", { exact: true }).first()).toBeVisible();
     await expect(page.locator("body")).not.toContainText("e2e-recipient@example.test");
@@ -96,7 +104,7 @@ test.describe.serial("Phase 7 notification hardening", () => {
 
     await page.goto("/audit-logs");
     await expect(
-      page.getByText("Notification Retry Requested", { exact: true }).first(),
+      page.getByRole("cell", { name: "Notification Retry Requested", exact: true }).first(),
     ).toBeVisible();
   });
 
@@ -118,9 +126,8 @@ test.describe.serial("Phase 7 notification hardening", () => {
       nonOwner.getByRole("heading", { name: "This page could not be found." }),
     ).toBeVisible();
     await nonOwner.goto("/notifications");
-    await expect(
-      nonOwner.getByRole("heading", { name: "This page could not be found." }),
-    ).toBeVisible();
+    await expect(nonOwner.getByRole("heading", { name: "Email Notifications" })).toBeVisible();
+    await expect(nonOwner.getByText("No notification deliveries found.")).toBeVisible();
     await nonOwnerContext.close();
   });
 });

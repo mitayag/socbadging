@@ -108,6 +108,7 @@ describe("batch issuance route boundaries", () => {
     form.set("file", file);
     const request = new Request("http://local/inspect", { method: "POST", body: form });
     request.headers.set("content-length", "1024");
+    vi.spyOn(request, "formData").mockResolvedValue(form);
     const response = await inspectRoute(request, classContext);
     expect(response.status).toBe(200);
     expect(state.inspect).toHaveBeenCalledTimes(1);

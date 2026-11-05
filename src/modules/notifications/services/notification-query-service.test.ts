@@ -21,7 +21,11 @@ vi.mock("@/platform/db/prisma", () => ({
   },
 }));
 
-import { getIssuanceNotificationStatus, listNotifications } from "./notification-query-service";
+import {
+  getIssuanceNotificationStatus,
+  getNotificationDetail,
+  listNotifications,
+} from "./notification-query-service";
 
 const admin: Actor = { id: "admin-1", name: "Admin", email: "admin@example.edu", role: "ADMIN" };
 const faculty: Actor = {
@@ -35,13 +39,17 @@ const row = {
   id: "delivery-1",
   type: "BADGE_ISSUED",
   status: "FAILED",
+  providerStatus: null,
   recipientEmail: "student.long@example.edu",
   badgeName: "Secure Systems",
+  deliveryChannel: "mailpit",
   attemptCount: 2,
   lastErrorCategory: "TRANSIENT",
   safeDiagnosticCode: "ETIMEDOUT",
   createdAt: new Date("2026-08-23T00:00:00Z"),
   sentAt: null,
+  smtpAcceptedAt: null,
+  providerStatusAt: null,
   issuance: { issuerUserId: "faculty-1", class: { ownerUserId: "faculty-1" } },
 };
 
@@ -61,7 +69,29 @@ describe("notification queries", () => {
     });
     expect(result.items[0]).not.toHaveProperty("recipientEmail");
     expect(mocks.deliveryFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: "FAILED" }, take: 20 }),
+      expect.objectContaining({ where: { status: "FAILED" }, take: 5 }),
+    );
+  });
+
+  it("filters by provider status", async () => {
+    await listNotifications(admin, { providerStatus: "DELIVERED" });
+    expect(mocks.deliveryFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ providerStatus: "DELIVERED" }),
+      }),
+    );
+  });
+
+  it("scopes Faculty notification lists to owned classes", async () => {
+    mocks.userFindUnique.mockResolvedValue({ role: "FACULTY", status: "ACTIVE", deletedAt: null });
+    const result = await listNotifications(faculty);
+    expect(result.items[0]).toMatchObject({ canRetry: false });
+    expect(mocks.deliveryFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          issuance: { class: { ownerUserId: "faculty-1" } },
+        }),
+      }),
     );
   });
 
@@ -74,6 +104,26 @@ describe("notification queries", () => {
       orderBy: { createdAt: "desc" },
       select: { status: true },
     });
+  });
+
+  it("returns a privacy-safe notification history detail", async () => {
+    mocks.deliveryFindFirst.mockResolvedValue({
+      ...row,
+      providerStatus: "DELIVERED",
+      providerStatusAt: new Date("2026-08-23T00:01:00Z"),
+      providerMessageId: "<message@example.test>",
+      smtpAcceptedAt: new Date("2026-08-23T00:00:30Z"),
+      resendCount: 0,
+      lastResendAt: null,
+      updatedAt: new Date("2026-08-23T00:01:00Z"),
+      issuance: { id: "issuance-1", publicId: "p".repeat(32), class: { ownerUserId: "faculty-1" } },
+      attemptHistory: [],
+      deliveryEvents: [],
+    });
+    const detail = await getNotificationDetail(admin, "delivery-1");
+    expect(detail.maskedRecipientEmail).toBe("s***@example.edu");
+    expect(detail).not.toHaveProperty("recipientEmail");
+    expect(detail.providerStatus).toBe("DELIVERED");
   });
 
   it("rejects an actor whose persisted access is no longer active", async () => {

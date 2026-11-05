@@ -1,0 +1,54 @@
+# Staging-only overlay. Never use this file for production.
+# It adds a local SMTP sink and forces Mailpit transport so no live email is transmitted.
+services:
+  mailpit:
+    image: axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
+    restart: unless-stopped
+    expose:
+      - "1025"
+    ports:
+      - "127.0.0.1:${STAGING_MAILPIT_PORT:-8026}:8025"
+    networks:
+      - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  web:
+    environment:
+      EMAIL_DELIVERY_MODE: mailpit
+      EMAIL_RECIPIENT_POLICY: local
+      EXTERNAL_EMAIL_ENABLED: "false"
+      CONTROLLED_ACCEPTANCE_ONLY: "false"
+      EXTERNAL_EMAIL_ALLOWLIST: ""
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_USERNAME: ""
+      SMTP_FROM: "HAU SOC Staging <badges@example.test>"
+      SMTP_REPLY_TO: ""
+      BREVO_WEBHOOK_ENABLED: "false"
+
+  worker:
+    environment:
+      EMAIL_DELIVERY_MODE: mailpit
+      EMAIL_RECIPIENT_POLICY: local
+      EXTERNAL_EMAIL_ENABLED: "false"
+      CONTROLLED_ACCEPTANCE_ONLY: "false"
+      EXTERNAL_EMAIL_ALLOWLIST: ""
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_USERNAME: ""
+      SMTP_FROM: "HAU SOC Staging <badges@example.test>"
+      SMTP_REPLY_TO: ""
+      BREVO_WEBHOOK_ENABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started

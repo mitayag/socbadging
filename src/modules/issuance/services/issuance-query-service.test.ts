@@ -154,13 +154,13 @@ describe("listIssuances", () => {
         where: { class: { ownerUserId: "faculty-1" } },
         orderBy: [{ issuedAt: "desc" }, { id: "desc" }],
         skip: 0,
-        take: 20,
+        take: 5,
       }),
     );
     expect(mocks.issuanceCount).toHaveBeenCalledWith({
       where: { class: { ownerUserId: "faculty-1" } },
     });
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       items: [
         expect.objectContaining({
           id: "issuance-1",
@@ -169,10 +169,11 @@ describe("listIssuances", () => {
         }),
       ],
       page: 1,
-      pageSize: 20,
+      pageSize: 5,
       total: 1,
       totalPages: 1,
       hasNext: false,
+      hasPrevious: false,
     });
     expect(result.items[0]).not.toHaveProperty("recipientEmail");
   });
@@ -184,6 +185,7 @@ describe("listIssuances", () => {
   });
 
   it("preserves normalized filters, search predicates, and pagination", async () => {
+    mocks.issuanceCount.mockResolvedValue(30);
     await listIssuances(faculty, {
       query: "Dela Cruz",
       status: "EXPIRED",
@@ -209,8 +211,8 @@ describe("listIssuances", () => {
             { achievementSnapshotJson: { path: "$.class.title", string_contains: "Dela Cruz" } },
           ],
         },
-        skip: 40,
-        take: 20,
+        skip: 10,
+        take: 5,
       }),
     );
   });
@@ -220,6 +222,32 @@ describe("listIssuances", () => {
 
     expect(mocks.issuanceFindMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 0 }));
     expect(result.page).toBe(1);
+  });
+
+  it("renders malformed issuance snapshots as unavailable instead of failing the list", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    mocks.issuanceFindMany.mockResolvedValue([
+      issuance({
+        recipientSnapshotJson: {},
+        achievementSnapshotJson: {},
+        issuerSnapshotJson: {},
+        credentialJson: {},
+      }),
+    ]);
+
+    const result = await listIssuances(administrator, {});
+
+    expect(result.items[0]).toMatchObject({
+      id: "issuance-1",
+      badgeName: "Credential data unavailable",
+      recipientDisplayName: "Unavailable record",
+      dataIntegrity: "INVALID",
+    });
+    expect(warn).toHaveBeenCalledWith(
+      "issuance.list.invalid_snapshot",
+      expect.objectContaining({ issuanceId: "issuance-1" }),
+    );
+    warn.mockRestore();
   });
 
   it("rejects an unauthenticated list before querying", async () => {
@@ -265,13 +293,13 @@ describe("getIssuanceDetail", () => {
     );
   });
 
-  it("rejects malformed historical snapshots instead of leaking unvalidated JSON", async () => {
+  it("returns a safe not-found result for malformed historical snapshots", async () => {
     mocks.issuanceFindFirst.mockResolvedValueOnce(
       issuance({ recipientSnapshotJson: { ...recipientSnapshot, email: 42 } }),
     );
 
-    await expect(getIssuanceDetail(faculty, "issuance-1")).rejects.toThrow(
-      "Invalid recipient snapshot",
+    await expect(getIssuanceDetail(faculty, "issuance-1")).rejects.toBeInstanceOf(
+      IssuanceNotFoundError,
     );
   });
 });
@@ -368,6 +396,27 @@ describe("listIssuanceExportRows", () => {
         where: { class: { ownerUserId: "faculty-1" }, classId: "class-1" },
       }),
     );
+  });
+
+  it("exports malformed snapshot rows without failing the export", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    mocks.issuanceFindMany.mockResolvedValue([
+      issuance({
+        recipientSnapshotJson: {},
+        achievementSnapshotJson: {},
+        issuerSnapshotJson: {},
+        credentialJson: {},
+      }),
+    ]);
+
+    const rows = await listIssuanceExportRows(administrator, {});
+
+    expect(rows[0]).toMatchObject({
+      recipientEmail: "",
+      badgeName: "Credential data unavailable",
+      dataIntegrity: "INVALID",
+    });
+    warn.mockRestore();
   });
 
   it("rejects an unauthenticated export before querying issuance records", async () => {

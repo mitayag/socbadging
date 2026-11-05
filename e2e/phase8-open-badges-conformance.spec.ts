@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { expect, test } from "./test-base";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -208,7 +210,10 @@ test.describe.serial("Phase 8 Open Badges local conformance", () => {
       csvPath,
       "student_number,email\ne2e-internal-student,e2e-recipient@example.test\n",
     );
-    await batchPanel.getByLabel("Student Batch File").setInputFiles(csvPath);
+    const batchFile = batchPanel.getByLabel("Student Batch File");
+    await batchFile.setInputFiles(csvPath);
+    await batchFile.dispatchEvent("change");
+    await expect(batchPanel.getByRole("button", { name: "Inspect File" })).toBeEnabled();
     await batchPanel.getByRole("button", { name: "Inspect File" }).click();
     await expect(batchPanel.getByRole("heading", { name: "Map Columns" })).toBeVisible();
     await batchPanel.getByRole("button", { name: "Validate Preview" }).click();

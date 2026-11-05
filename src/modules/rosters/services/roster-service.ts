@@ -1,6 +1,8 @@
 import "server-only";
+
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { requireAuthenticated, requireClassOwner } from "@/modules/identity/policies/authorization";
+import { requireClassOwner, requireStaff } from "@/modules/identity/policies/authorization";
 import type { Actor } from "@/modules/identity/types";
 import { prisma } from "@/platform/db/prisma";
 
@@ -19,7 +21,7 @@ async function owned(actor: Actor, classId: string) {
 }
 
 export async function getClassWorkspace(actor: Actor, classId: string) {
-  requireAuthenticated(actor);
+  requireStaff(actor);
   const item = await prisma.class.findUniqueOrThrow({
     where: { id: classId },
     include: { owner: { select: { name: true, email: true } } },
@@ -27,37 +29,80 @@ export async function getClassWorkspace(actor: Actor, classId: string) {
   if (actor.role === "FACULTY") requireClassOwner(actor, item.ownerUserId);
   return item;
 }
+export const rosterPageSizes = [5, 10, 25, 50] as const;
+export type RosterPageSize = (typeof rosterPageSizes)[number];
+export type RosterSort = "name" | "studentNumber" | "status";
+
+function rosterOrderBy(sort: RosterSort): Prisma.ClassStudentOrderByWithRelationInput[] {
+  if (sort === "studentNumber") {
+    return [{ student: { studentNumber: "asc" } }, { studentId: "asc" }];
+  }
+  if (sort === "status") {
+    return [
+      { enrollmentStatus: "asc" },
+      { student: { lastName: "asc" } },
+      { student: { firstName: "asc" } },
+      { studentId: "asc" },
+    ];
+  }
+  return [
+    { student: { lastName: "asc" } },
+    { student: { firstName: "asc" } },
+    { studentId: "asc" },
+  ];
+}
+
 export async function listRoster(
   actor: Actor,
   classId: string,
   query = "",
   status?: "ACTIVE" | "REMOVED",
   page = 1,
+  options: { pageSize?: RosterPageSize; sort?: RosterSort } = {},
 ) {
   await getClassWorkspace(actor, classId);
+  const pageSize = rosterPageSizes.includes(options.pageSize ?? 5) ? (options.pageSize ?? 5) : 5;
+  const where: Prisma.ClassStudentWhereInput = {
+    classId,
+    ...(status ? { enrollmentStatus: status } : {}),
+    ...(query
+      ? {
+          student: {
+            OR: [
+              { studentNumber: { contains: query } },
+              { firstName: { contains: query } },
+              { lastName: { contains: query } },
+              { email: { contains: query } },
+            ],
+          },
+        }
+      : {}),
+  };
+  const total = await prisma.classStudent.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(1, page), pageCount);
   const rows = await prisma.classStudent.findMany({
-    where: {
-      classId,
-      enrollmentStatus: status,
-      ...(query
-        ? {
-            student: {
-              OR: [
-                { studentNumber: { contains: query } },
-                { firstName: { contains: query } },
-                { lastName: { contains: query } },
-                { email: { contains: query } },
-              ],
-            },
-          }
-        : {}),
+    where,
+    include: {
+      student: {
+        include: {
+          account: { select: { user: { select: { status: true, email: true } } } },
+        },
+      },
     },
-    include: { student: true },
-    orderBy: { student: { lastName: "asc" } },
-    skip: (Math.max(1, page) - 1) * 20,
-    take: 21,
+    orderBy: rosterOrderBy(options.sort ?? "name"),
+    skip: (currentPage - 1) * pageSize,
+    take: pageSize,
   });
-  return { items: rows.slice(0, 20), hasNext: rows.length > 20 };
+  return {
+    items: rows,
+    page: currentPage,
+    pageSize,
+    pageCount,
+    total,
+    hasNext: currentPage < pageCount,
+    hasPrevious: currentPage > 1,
+  };
 }
 export async function addStudent(actor: Actor, classId: string, raw: unknown) {
   await owned(actor, classId);

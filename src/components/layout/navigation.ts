@@ -4,6 +4,7 @@ import {
   BookOpen,
   ClipboardList,
   Gauge,
+  GraduationCap,
   Settings,
   UserRound,
   Users,
@@ -32,6 +33,12 @@ const adminItems: NavigationItem[] = [
     icon: Users,
     phase: "available",
   },
+  {
+    label: "Students",
+    href: "/students",
+    icon: GraduationCap,
+    phase: "available",
+  },
   { label: "Audit Logs", href: "/audit-logs", icon: ClipboardList, phase: "available" },
   { label: "Settings", href: "/settings", icon: Settings, phase: "available" },
 ];
@@ -53,8 +60,16 @@ const profile: NavigationItem = {
   icon: UserRound,
   phase: "available",
 };
+const studentItems: NavigationItem[] = [
+  { label: "Overview", href: "/student", icon: Gauge, phase: "available" },
+  { label: "My Badges", href: "/student/badges", icon: Award, phase: "available" },
+  { label: "Notifications", href: "/student/notifications", icon: Bell, phase: "available" },
+  { label: "Profile", href: "/student/profile", icon: UserRound, phase: "available" },
+  { label: "Help", href: "/student/help", icon: BookOpen, phase: "available" },
+];
 
 export function getNavigationItems(role: Role): NavigationItem[] {
+  if (role === "STUDENT") return studentItems;
   return role === "ADMIN"
     ? [dashboard, classes, issuedBadges, ...adminItems]
     : [dashboard, classes, issuedBadges, profile];

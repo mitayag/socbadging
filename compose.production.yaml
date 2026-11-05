@@ -1,0 +1,370 @@
+name: hau-soc-badging-prod
+
+# Production Compose configuration. Mailpit, integration, and seed-by-default services are not
+# included. The one-shot seed service is opt-in through the "tools" profile.
+#
+# Required host-side inputs:
+#   - deploy/production.env (copied from deploy/production.env.example, mode 0600)
+#   - SECRETS_DIR containing the files documented in deploy/secrets/README.md
+#
+# Validate without starting:
+#   docker compose --env-file /etc/hau-soc/production.env -f compose.production.yaml config
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-restricted: &restricted
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  db-init:
+    image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+    command: ["chown", "-R", "999:999", "/var/lib/mysql-binlogs"]
+    restart: "no"
+    network_mode: none
+    volumes:
+      - mariadb_binlogs:/var/lib/mysql-binlogs
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  db:
+    image: mariadb:11.8@sha256:d9f7eb2637296652f24b484afd5d246f759f49f5babcadc6a9e344c9acb75fbf
+    restart: unless-stopped
+    command:
+      - --server-id=1
+      - --log-bin=/var/lib/mysql-binlogs/mariadb-bin
+      - --binlog-format=ROW
+      - --log-bin-trust-function-creators=1
+      - --expire-logs-days=${MARIADB_BINLOG_RETENTION_DAYS:-14}
+      - --max-binlog-size=256M
+    environment:
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-badging}
+      MARIADB_USER: ${MARIADB_USER:-badging}
+      MARIADB_PASSWORD_FILE: /run/secrets/db_password
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - mariadb_binlogs:/var/lib/mysql-binlogs
+    secrets:
+      - db_password
+      - db_root_password
+    networks:
+      - internal
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'mariadb-admin ping -h 127.0.0.1 -uroot -p"$$(cat /run/secrets/db_root_password)" --silent',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    build:
+      context: .
+      target: tools
+    restart: "no"
+    user: "1001:1001"
+    command: ["./node_modules/.bin/prisma", "migrate", "deploy"]
+    environment:
+      NODE_ENV: production
+    secrets:
+      - database_url
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+    tmpfs:
+      - /tmp:mode=1777,size=32m
+    logging: *default-logging
+    <<: *restricted
+
+  media-init:
+    image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+    command: ["chown", "-R", "1001:1001", "/app/storage"]
+    restart: "no"
+    network_mode: none
+    volumes:
+      - media_data:/app/storage
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
+  signer:
+    build:
+      context: .
+      target: signer
+    restart: unless-stopped
+    user: "1001:1001"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+      - /app/node_modules/.cache:mode=1777,size=16m
+    environment:
+      NODE_ENV: production
+      SIGNING_PRIVATE_KEY_PATH: /run/secrets/signing_key
+      SIGNING_KEY_ID: ${SIGNING_KEY_ID:?SIGNING_KEY_ID is required}
+      SIGNING_PUBLIC_MULTIKEY: ${SIGNING_PUBLIC_MULTIKEY:?SIGNING_PUBLIC_MULTIKEY is required}
+      SIGNING_KEY_FINGERPRINT: ${SIGNING_KEY_FINGERPRINT:?SIGNING_KEY_FINGERPRINT is required}
+      SIGNING_CRYPTOSUITE: ${SIGNING_CRYPTOSUITE:-eddsa-rdfc-2022}
+    secrets:
+      - signer_token
+      - signing_key
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3101/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    logging: *default-logging
+    <<: *restricted
+
+  web:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+      - /app/.next/cache:mode=1777,size=64m
+    environment:
+      NODE_ENV: production
+      APP_URL: ${APP_URL:?APP_URL is required}
+      ISSUER_URL: ${ISSUER_URL:?ISSUER_URL is required}
+      ISSUER_NAME: ${ISSUER_NAME:-Holy Angel University — School of Computing}
+      ISSUER_LOGO_PATH: ${ISSUER_LOGO_PATH:-/images/hausoclogo.png}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      SIGNER_URL: http://signer:3101
+      SIGNER_TIMEOUT_MS: ${SIGNER_TIMEOUT_MS:-5000}
+      SIGNING_KEY_ID: ${SIGNING_KEY_ID:?SIGNING_KEY_ID is required}
+      SIGNING_CRYPTOSUITE: ${SIGNING_CRYPTOSUITE:-eddsa-rdfc-2022}
+      EMAIL_DELIVERY_MODE: ${EMAIL_DELIVERY_MODE:-brevo}
+      EMAIL_RECIPIENT_POLICY: ${EMAIL_RECIPIENT_POLICY:?EMAIL_RECIPIENT_POLICY is required}
+      EXTERNAL_EMAIL_ENABLED: ${EXTERNAL_EMAIL_ENABLED:-true}
+      CONTROLLED_ACCEPTANCE_ONLY: ${CONTROLLED_ACCEPTANCE_ONLY:-false}
+      EXTERNAL_EMAIL_ALLOWLIST: ${EXTERNAL_EMAIL_ALLOWLIST:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_REPLY_TO: ${SMTP_REPLY_TO:-}
+      BREVO_SMTP_HOST: ${BREVO_SMTP_HOST:-smtp-relay.brevo.com}
+      BREVO_SMTP_PORT: ${BREVO_SMTP_PORT:-587}
+      BREVO_SMTP_USER: ${BREVO_SMTP_USER:-}
+      BREVO_SENDER: ${BREVO_SENDER:-HAU SOC Badging System <badges@example.edu>}
+      BREVO_WEBHOOK_ENABLED: ${BREVO_WEBHOOK_ENABLED:-true}
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_HOST_PORT:-3001}:3000"
+    volumes:
+      - media_data:/app/storage
+    secrets:
+      - database_url
+      - signer_token
+      - brevo_webhook_secret
+      - brevo_smtp_password
+    networks:
+      - internal
+      - egress
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      media-init:
+        condition: service_completed_successfully
+      signer:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging: *default-logging
+    <<: *restricted
+
+  worker:
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    user: "1001:1001"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=32m
+      - /app/node_modules/.cache:mode=1777,size=32m
+    environment:
+      NODE_ENV: production
+      EMAIL_DELIVERY_MODE: ${EMAIL_DELIVERY_MODE:-brevo}
+      EMAIL_RECIPIENT_POLICY: ${EMAIL_RECIPIENT_POLICY:?EMAIL_RECIPIENT_POLICY is required}
+      EXTERNAL_EMAIL_ENABLED: ${EXTERNAL_EMAIL_ENABLED:-true}
+      CONTROLLED_ACCEPTANCE_ONLY: ${CONTROLLED_ACCEPTANCE_ONLY:-false}
+      EXTERNAL_EMAIL_ALLOWLIST: ${EXTERNAL_EMAIL_ALLOWLIST:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_REPLY_TO: ${SMTP_REPLY_TO:-}
+      BREVO_SMTP_HOST: ${BREVO_SMTP_HOST:-smtp-relay.brevo.com}
+      BREVO_SMTP_PORT: ${BREVO_SMTP_PORT:-587}
+      BREVO_SMTP_USER: ${BREVO_SMTP_USER:-}
+      BREVO_SENDER: ${BREVO_SENDER:-HAU SOC Badging System <badges@example.edu>}
+      BREVO_WEBHOOK_ENABLED: ${BREVO_WEBHOOK_ENABLED:-true}
+      NOTIFICATION_POLL_INTERVAL_MS: ${NOTIFICATION_POLL_INTERVAL_MS:-5000}
+      NOTIFICATION_CLAIM_LEASE_SECONDS: ${NOTIFICATION_CLAIM_LEASE_SECONDS:-120}
+      NOTIFICATION_MAX_ATTEMPTS: ${NOTIFICATION_MAX_ATTEMPTS:-5}
+      NOTIFICATION_RETRY_BASE_DELAY_SECONDS: ${NOTIFICATION_RETRY_BASE_DELAY_SECONDS:-60}
+      NOTIFICATION_BATCH_SIZE: ${NOTIFICATION_BATCH_SIZE:-20}
+    secrets:
+      - database_url
+      - brevo_smtp_password
+    networks:
+      - internal
+      - egress
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "scripts/worker-healthcheck.mjs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    <<: *restricted
+
+  seed:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: tools
+    restart: "no"
+    user: "1001:1001"
+    command: ["./node_modules/.bin/tsx", "prisma/seed.ts"]
+    environment:
+      NODE_ENV: production
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-System Administrator}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:?BOOTSTRAP_ADMIN_EMAIL is required}
+    secrets:
+      - database_url
+      - bootstrap_admin_password
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    tmpfs:
+      - /tmp:mode=1777,size=32m
+    logging: *default-logging
+    <<: *restricted
+  bootstrap:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: tools
+    restart: "no"
+    user: "1001:1001"
+    command: ["./node_modules/.bin/tsx", "scripts/bootstrap-local-signing.ts"]
+    environment:
+      NODE_ENV: production
+      APP_URL: ${APP_URL:?APP_URL is required}
+      ISSUER_URL: ${ISSUER_URL:?ISSUER_URL is required}
+      SIGNER_URL: http://signer:3101
+      SIGNING_KEY_ID: ${SIGNING_KEY_ID:?SIGNING_KEY_ID is required}
+      SIGNING_PUBLIC_MULTIKEY: ${SIGNING_PUBLIC_MULTIKEY:?SIGNING_PUBLIC_MULTIKEY is required}
+      SIGNING_KEY_FINGERPRINT: ${SIGNING_KEY_FINGERPRINT:?SIGNING_KEY_FINGERPRINT is required}
+      SIGNING_CRYPTOSUITE: ${SIGNING_CRYPTOSUITE:-eddsa-rdfc-2022}
+    secrets:
+      - database_url
+      - signer_token
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      signer:
+        condition: service_healthy
+    tmpfs:
+      - /tmp:mode=1777,size=32m
+    logging: *default-logging
+    <<: *restricted
+
+networks:
+  internal:
+    internal: true
+  egress:
+    driver: bridge
+
+volumes:
+  mariadb_data:
+  mariadb_binlogs:
+  media_data:
+
+secrets:
+  database_url:
+    file: ${SECRETS_DIR:-/etc/hau-soc/secrets}/database_url
+  db_password:
+    file: ${SECRETS_DIR:-/etc/hau-soc/secrets}/db_password
+  db_root_password:
+    file: ${SECRETS_DIR:-/etc/hau-soc/secrets}/db_root_password
+  signer_token:
+    file: ${SECRETS_DIR:-/etc/hau-soc/secrets}/signer_token
+  signing_key:
+    file: ${SECRETS_DIR:-/etc/hau-soc/secrets}/signing_key
+  brevo_smtp_password:
+    file: ${SECRETS_DIR:-/etc/hau-soc/secrets}/brevo_smtp_password
+  brevo_webhook_secret:
+    file: ${SECRETS_DIR:-/etc/hau-soc/secrets}/brevo_webhook_secret
+  bootstrap_admin_password:
+    file: ${SECRETS_DIR:-/etc/hau-soc/secrets}/bootstrap_admin_password

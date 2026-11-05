@@ -26,10 +26,8 @@ export async function editClassAction(form: FormData) {
   redirect("/classes?notice=updated");
 }
 export async function statusClassAction(form: FormData) {
-  await setClassStatus(
-    await actor(),
-    String(form.get("classId") ?? ""),
-    String(form.get("status")) === "ACTIVE" ? "ACTIVE" : "ARCHIVED",
-  );
+  const status = String(form.get("status")) === "ACTIVE" ? "ACTIVE" : "ARCHIVED";
+  await setClassStatus(await actor(), String(form.get("classId") ?? ""), status);
   revalidatePath("/classes");
+  redirect(`/classes?notice=${status === "ACTIVE" ? "reopened" : "archived"}`);
 }

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100";
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = process.env.E2E_DATABASE_URL ?? process.env.TEST_DATABASE_URL;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -26,7 +26,12 @@ export default defineConfig({
         command: "tsx e2e/start-phase8-server.ts",
         url: `${baseURL}/api/health`,
         reuseExistingServer: false,
-        env: { ...process.env, TEST_DATABASE_URL: testDatabaseUrl },
+        timeout: 180_000,
+        env: {
+          ...process.env,
+          TEST_DATABASE_URL: testDatabaseUrl,
+          E2E_DATABASE_URL: testDatabaseUrl,
+        },
       }
     : undefined,
 });

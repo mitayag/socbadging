@@ -23,8 +23,30 @@ describe("notification outbox", () => {
         issuanceId: "issuance-1",
         type: "BADGE_ISSUED",
         status: "PENDING",
+        deliveryChannel: "mailpit",
         recipientEmail: "student@example.edu",
         recipientFirstName: "Ada",
+      }),
+    });
+  });
+
+  it("stores optional badge artwork and expiration metadata", async () => {
+    const tx = transactionDouble();
+    await enqueueIssuedNotification(tx as never, {
+      issuanceId: "issuance-1",
+      recipientEmail: "student@example.edu",
+      recipientFirstName: "Ada",
+      badgeName: "Dean's List",
+      badgeImageUrl: "https://badges.example.edu/api/media/badges/test.png",
+      issuerName: "HAU SOC",
+      verificationUrl: "https://badges.example.edu/credentials/public-token",
+      occurredAt: new Date("2026-08-23T00:00:00Z"),
+      expiresAt: new Date("2026-09-01T00:00:00Z"),
+    });
+    expect(tx.notificationDelivery.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        badgeImageUrl: "https://badges.example.edu/api/media/badges/test.png",
+        expiresAt: new Date("2026-09-01T00:00:00Z"),
       }),
     });
   });

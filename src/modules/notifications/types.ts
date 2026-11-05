@@ -10,6 +10,17 @@ export const notificationDeliveryStatuses = [
 ] as const;
 export type NotificationDeliveryStatus = (typeof notificationDeliveryStatuses)[number];
 
+export const notificationProviderStatuses = [
+  "ACCEPTED",
+  "DELIVERED",
+  "DEFERRED",
+  "BOUNCED",
+  "BLOCKED",
+  "INVALID",
+  "COMPLAINT",
+] as const;
+export type NotificationProviderStatus = (typeof notificationProviderStatuses)[number];
+
 export type NotificationDeliveryDto = {
   id: string;
   type: NotificationType;

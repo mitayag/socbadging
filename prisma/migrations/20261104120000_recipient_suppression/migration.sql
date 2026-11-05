@@ -1,0 +1,22 @@
+CREATE TABLE `recipient_suppressions` (
+  `id` VARCHAR(191) NOT NULL,
+  `normalized_email` VARCHAR(191) NOT NULL,
+  `recipient_email` VARCHAR(191) NOT NULL,
+  `reason` ENUM('HARD_BOUNCE', 'COMPLAINT', 'INVALID_RECIPIENT', 'BLOCKED_PERMANENT') NOT NULL,
+  `provider` VARCHAR(32) NOT NULL DEFAULT 'brevo',
+  `provider_event_id` VARCHAR(191) NULL,
+  `source_delivery_id` VARCHAR(191) NULL,
+  `suppressed_at` DATETIME(3) NOT NULL,
+  `evidence_json` JSON NULL,
+  `status` ENUM('ACTIVE', 'CLEARED') NOT NULL DEFAULT 'ACTIVE',
+  `cleared_at` DATETIME(3) NULL,
+  `cleared_by_user_id` VARCHAR(191) NULL,
+  `clear_reason` TEXT NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL,
+  UNIQUE INDEX `recipient_suppressions_normalized_email_key`(`normalized_email`),
+  INDEX `recipient_suppressions_status_suppressed_at_idx`(`status`, `suppressed_at`),
+  INDEX `recipient_suppressions_reason_status_idx`(`reason`, `status`),
+  INDEX `recipient_suppressions_provider_event_id_idx`(`provider_event_id`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

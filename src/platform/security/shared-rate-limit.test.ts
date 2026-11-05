@@ -40,6 +40,7 @@ describe("shared rate-limit policy contracts", () => {
     for (const name of [
       "login",
       "reset",
+      "account",
       "public-html",
       "public-json",
       "import",

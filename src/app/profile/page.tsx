@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { requireRole } from "@/modules/identity/policies/authorization";
@@ -14,7 +15,45 @@ export default async function ProfilePage({
 }) {
   const actor = await getCurrentActor();
   if (!actor) redirect("/login");
-  if (actor.role !== "FACULTY") redirect("/dashboard");
+  if (actor.role === "STUDENT") redirect("/student/profile");
+  if (actor.role === "ADMIN") {
+    return (
+      <AppShell actor={actor} title="My Profile">
+        <section className="workspace-page narrow account-page">
+          <div className="page-heading">
+            <span className="eyebrow">Administrator Profile</span>
+            <h1>Your Account</h1>
+            <p>Review your account identity and manage security settings.</p>
+          </div>
+          <section className="panel account-summary" aria-labelledby="admin-profile-heading">
+            <h2 id="admin-profile-heading">Profile</h2>
+            <dl>
+              <div>
+                <dt>Full Name</dt>
+                <dd>{actor.name}</dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>{actor.email}</dd>
+              </div>
+              <div>
+                <dt>Role</dt>
+                <dd>System Administrator</dd>
+              </div>
+            </dl>
+            <div className="inline-actions">
+              <Link className="secondary-button export-link" href="/account">
+                Account Settings
+              </Link>
+              <Link className="secondary-button export-link" href="/settings">
+                Issuer Settings
+              </Link>
+            </div>
+          </section>
+        </section>
+      </AppShell>
+    );
+  }
   requireRole(actor, "FACULTY");
   const params = await searchParams;
   const [user, activeDepartments] = await Promise.all([

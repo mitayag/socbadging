@@ -50,6 +50,23 @@ private file is owned by the deployment operator with mode `0600`.
 6. Verify `/api/health` reports only signer status, key ID, and cryptosuite. Verify the public key
    endpoint, then issue and cryptographically verify a controlled credential.
 
+## Local development bootstrap
+
+For local Compose, the signer can be ready while MariaDB still lacks an active public key or a
+publishable revocation status list. Signed issuance requires both. After configuring the local
+`SIGNING_*` values and starting `db` and `signer`, run `scripts/bootstrap-local-signing.ts` on the
+Compose network with `DATABASE_URL`, `APP_URL`, `SIGNER_URL`, `SIGNER_TOKEN`, and the public
+`SIGNING_*` values. The script idempotently registers/activates the matching public key and
+initializes a signed 131,072-entry revocation status list. `ISSUER_URL` must equal the issuer
+controller URL (`APP_URL + /api/issuers/hau-soc`) so the credential issuer matches the key
+controller.
+
+The bootstrap never overwrites an already published status list. If it reports
+`statusListUpdated: false`, the existing list was left untouched. If allocation versions are
+inconsistent with the published list version, run the audited repair procedure in
+[Status-List Architecture](../conformance/status-list-architecture.md) instead of rerunning the
+bootstrap.
+
 ## Rotate or retire
 
 1. Generate and separately back up a fresh key at new paths. Never overwrite or reuse key files or

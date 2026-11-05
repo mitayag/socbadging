@@ -6,13 +6,14 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/platform/db/prisma";
 
 export type RateLimitPolicyName =
-  "login" | "reset" | "public-html" | "public-json" | "import" | "export" | "media";
+  "login" | "reset" | "account" | "public-html" | "public-json" | "import" | "export" | "media";
 
 type RateLimitPolicy = { limit: number; windowMs: number };
 
 const policies = {
   login: { limit: 10, windowMs: 60_000 },
   reset: { limit: 5, windowMs: 3_600_000 },
+  account: { limit: 10, windowMs: 3_600_000 },
   "public-html": { limit: 60, windowMs: 60_000 },
   "public-json": { limit: 60, windowMs: 60_000 },
   import: { limit: 20, windowMs: 60_000 },
@@ -72,8 +73,9 @@ export async function consumeRateLimit({
     .update(`${policy}\u0000${keyHash}\u0000${windowStart.toISOString()}`)
     .digest("hex");
 
-  const requestCount = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw(Prisma.sql`
+  const requestCount = await prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw(Prisma.sql`
       INSERT INTO rate_limit_buckets
         (id, policy, key_hash, window_start, expires_at, request_count, created_at, updated_at)
       VALUES
@@ -82,16 +84,18 @@ export async function consumeRateLimit({
         request_count = request_count + 1,
         updated_at = VALUES(updated_at)
     `);
-    const rows = await tx.$queryRaw<Array<{ request_count: bigint | number }>>(Prisma.sql`
+      const rows = await tx.$queryRaw<Array<{ request_count: bigint | number }>>(Prisma.sql`
       SELECT request_count
       FROM rate_limit_buckets
       WHERE id = ${id}
       LIMIT 1
     `);
-    const value = Number(rows[0]?.request_count);
-    if (!Number.isSafeInteger(value) || value < 1) throw new Error("Rate-limit update failed");
-    return value;
-  });
+      const value = Number(rows[0]?.request_count);
+      if (!Number.isSafeInteger(value) || value < 1) throw new Error("Rate-limit update failed");
+      return value;
+    },
+    { timeout: 15_000, maxWait: 5_000 },
+  );
 
   // Cleanup is bounded and deliberately outside the counter transaction. A cleanup scan takes
   // range locks in MariaDB; placing it before concurrent inserts can deadlock otherwise-correct

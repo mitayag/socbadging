@@ -117,7 +117,11 @@ beforeEach(() => {
   mocks.calculateExpiresAt.mockReturnValue(new Date("2026-09-11T08:30:15.250Z"));
   mocks.buildCredentialSnapshots.mockReturnValue({
     recipient: { ...student, studentId: student.id, displayName: "Juan Dela Cruz" },
-    achievement: { ...badgeTemplate, badgeTemplateId: badgeTemplate.id },
+    achievement: {
+      ...badgeTemplate,
+      badgeTemplateId: badgeTemplate.id,
+      image: { id: "https://badges.example.test/api/media/badges/test.png", type: "Image" },
+    },
     issuer: { name: "Database Faculty", issuerUserId: issuer.id },
     credential: { id: "https://badges.example.test/credentials/public-id-1" },
   });

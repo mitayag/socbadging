@@ -175,10 +175,23 @@ export function PublicCredentialCard({ credential }: { credential: PublicCredent
           >
             Download JSON-LD
           </a>
+          <a
+            className="secondary-button export-link"
+            href={`/api/credentials/${encodeURIComponent(credential.publicId)}/image?download=1`}
+          >
+            Download Badge Image
+          </a>
+          <a
+            className="secondary-button export-link"
+            href={`/api/credentials/${encodeURIComponent(credential.publicId)}/pdf`}
+          >
+            Download PDF Summary
+          </a>
         </div>
       </section>
       <ShareControls
         canonicalUrl={canonicalUrl}
+        qrSrc={`/api/credentials/${encodeURIComponent(credential.publicId)}/qr`}
         sharingEnabled={credential.sharingEnabled}
         text={text}
         title={title}

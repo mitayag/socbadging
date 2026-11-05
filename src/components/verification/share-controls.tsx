@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- QR code is generated as a raster PNG by the local API. */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,13 +8,20 @@ type ShareControlsProps = {
   title: string;
   text: string;
   sharingEnabled: boolean;
+  qrSrc?: string;
 };
 
 function externalLink(url: string) {
   return { href: url, target: "_blank", rel: "noopener noreferrer" };
 }
 
-export function ShareControls({ canonicalUrl, title, text, sharingEnabled }: ShareControlsProps) {
+export function ShareControls({
+  canonicalUrl,
+  title,
+  text,
+  sharingEnabled,
+  qrSrc,
+}: ShareControlsProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [canNativeShare, setCanNativeShare] = useState(false);
 
@@ -97,6 +105,26 @@ export function ShareControls({ canonicalUrl, title, text, sharingEnabled }: Sha
           Email
         </a>
       </div>
+      {qrSrc ? (
+        <div className="share-qr">
+          <img
+            alt="QR code for the public credential verification page"
+            height={160}
+            src={qrSrc}
+            width={160}
+          />
+          <div>
+            <h3>Scan to verify</h3>
+            <p className="muted">
+              This QR code opens the public verification page without exposing recipient contact
+              details.
+            </p>
+            <a className="secondary-button export-link" download href={qrSrc}>
+              Download QR Code
+            </a>
+          </div>
+        </div>
+      ) : null}
       <p aria-live="polite" className="share-feedback" role="status">
         {feedback}
       </p>

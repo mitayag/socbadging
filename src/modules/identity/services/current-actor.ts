@@ -10,10 +10,27 @@ export async function getCurrentActor(): Promise<Actor | null> {
   if (!token) return null;
   const session = await prisma.session.findUnique({
     where: { sessionToken: hashSessionToken(token) },
-    include: { user: { select: { id: true, name: true, email: true, role: true, status: true } } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          status: true,
+          mustChangePassword: true,
+        },
+      },
+    },
   });
   if (!session || session.expires <= new Date()) return null;
   const user = session.user;
   if (!user || user.status !== "ACTIVE") return null;
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+  };
 }

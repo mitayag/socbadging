@@ -9,10 +9,12 @@ datasource db {
 enum Role {
   ADMIN
   FACULTY
+  STUDENT
 }
 
 enum UserStatus {
   ACTIVE
+  INACTIVE
   SUSPENDED
   DELETED
 }
@@ -67,12 +69,72 @@ enum NotificationType {
   BADGE_REVOKED
 }
 
+enum StudentTokenType {
+  ACTIVATION
+  RECOVERY
+}
+
 enum NotificationDeliveryStatus {
   PENDING
   PROCESSING
   RETRY_SCHEDULED
   SENT
   FAILED
+}
+
+enum SmtpSubmissionState {
+  NOT_STARTED
+  SUBMISSION_RESERVED
+  ACCEPTED
+  REJECTED
+  OUTCOME_UNKNOWN
+}
+
+enum NotificationProviderStatus {
+  ACCEPTED
+  DELIVERED
+  DEFERRED
+  BOUNCED
+  BLOCKED
+  INVALID
+  COMPLAINT
+}
+
+enum NotificationAttemptOutcome {
+  STARTED
+  ACCEPTED
+  REJECTED
+  OUTCOME_UNKNOWN
+}
+
+enum NotificationEventSource {
+  WORKER
+  WEBHOOK
+  ADMIN
+}
+
+enum NotificationEventType {
+  SMTP_ACCEPTED
+  SMTP_REJECTED
+  SMTP_OUTCOME_UNKNOWN
+  DELIVERED
+  DEFERRED
+  BOUNCED
+  BLOCKED
+  INVALID
+  COMPLAINT
+}
+
+enum RecipientSuppressionReason {
+  HARD_BOUNCE
+  COMPLAINT
+  INVALID_RECIPIENT
+  BLOCKED_PERMANENT
+}
+
+enum RecipientSuppressionStatus {
+  ACTIVE
+  CLEARED
 }
 
 model User {
@@ -86,6 +148,7 @@ model User {
   role                 Role
   status               UserStatus            @default(ACTIVE)
   sessionVersion       Int                   @default(0) @map("session_version")
+  mustChangePassword   Boolean               @default(false) @map("must_change_password")
   lastLoginAt          DateTime?             @map("last_login_at")
   deletedAt            DateTime?             @map("deleted_at")
   createdAt            DateTime              @default(now()) @map("created_at")
@@ -99,6 +162,9 @@ model User {
   rosterImportPreviews RosterImportPreview[] @relation("ImportActor")
   issuedBadgeIssuances BadgeIssuance[]       @relation("IssuanceIssuer")
   issuanceBatches      IssuanceBatch[]       @relation("BatchFaculty")
+  studentAccount       StudentAccount?
+  studentTokens        StudentToken[]        @relation("StudentTokenUser")
+  createdStudentTokens StudentToken[]        @relation("StudentTokenCreator")
 
   @@map("users")
 }
@@ -167,6 +233,8 @@ model Student {
   updatedAt      DateTime        @updatedAt @map("updated_at")
   enrollments    ClassStudent[]
   badgeIssuances BadgeIssuance[]
+  account        StudentAccount?
+  tokens         StudentToken[]
 
   @@index([lastName, firstName])
   @@index([email])
@@ -345,34 +413,132 @@ model CredentialReplacementGuard {
 }
 
 model NotificationDelivery {
-  id                 String                     @id @default(cuid())
-  issuanceId         String                     @map("issuance_id")
-  type               NotificationType
-  status             NotificationDeliveryStatus @default(PENDING)
-  recipientEmail     String                     @map("recipient_email") @db.VarChar(191)
-  recipientFirstName String                     @map("recipient_first_name") @db.VarChar(191)
-  badgeName          String                     @map("badge_name") @db.VarChar(191)
-  issuerName         String                     @map("issuer_name") @db.VarChar(191)
-  verificationUrl    String                     @map("verification_url") @db.VarChar(2048)
-  supportContact     String?                    @map("support_contact") @db.VarChar(2048)
-  occurredAt         DateTime                   @map("occurred_at")
-  attemptCount       Int                        @default(0) @map("attempt_count")
-  nextAttemptAt      DateTime                   @default(now()) @map("next_attempt_at")
-  claimToken         String?                    @map("claim_token") @db.VarChar(191)
-  claimExpiresAt     DateTime?                  @map("claim_expires_at")
-  lastErrorCategory  String?                    @map("last_error_category") @db.VarChar(50)
-  safeDiagnosticCode String?                    @map("safe_diagnostic_code") @db.VarChar(100)
-  providerMessageId  String?                    @map("provider_message_id") @db.VarChar(191)
-  sentAt             DateTime?                  @map("sent_at")
-  createdAt          DateTime                   @default(now()) @map("created_at")
-  updatedAt          DateTime                   @updatedAt @map("updated_at")
-  issuance           BadgeIssuance              @relation(fields: [issuanceId], references: [id], onDelete: Restrict)
+  id                    String                        @id @default(cuid())
+  issuanceId            String                        @map("issuance_id")
+  type                  NotificationType
+  status                NotificationDeliveryStatus    @default(PENDING)
+  deliveryChannel       String                        @default("mailpit") @map("delivery_channel") @db.VarChar(20)
+  recipientEmail        String                        @map("recipient_email") @db.VarChar(191)
+  recipientFirstName    String                        @map("recipient_first_name") @db.VarChar(191)
+  badgeName             String                        @map("badge_name") @db.VarChar(191)
+  badgeImageUrl         String?                       @map("badge_image_url") @db.VarChar(2048)
+  issuerName            String                        @map("issuer_name") @db.VarChar(191)
+  verificationUrl       String                        @map("verification_url") @db.VarChar(2048)
+  expiresAt             DateTime?                     @map("expires_at")
+  supportContact        String?                       @map("support_contact") @db.VarChar(2048)
+  occurredAt            DateTime                      @map("occurred_at")
+  attemptCount          Int                           @default(0) @map("attempt_count")
+  resendCount           Int                           @default(0) @map("resend_count")
+  lastResendAt          DateTime?                     @map("last_resend_at")
+  nextAttemptAt         DateTime                      @default(now()) @map("next_attempt_at")
+  claimToken            String?                       @map("claim_token") @db.VarChar(191)
+  claimExpiresAt        DateTime?                     @map("claim_expires_at")
+  lastErrorCategory     String?                       @map("last_error_category") @db.VarChar(50)
+  safeDiagnosticCode    String?                       @map("safe_diagnostic_code") @db.VarChar(100)
+  providerMessageId     String?                       @map("provider_message_id") @db.VarChar(191)
+  smtpAcceptedAt        DateTime?                     @map("smtp_accepted_at")
+  providerStatus        NotificationProviderStatus?   @map("provider_status")
+  providerStatusAt      DateTime?                     @map("provider_status_at")
+  sentAt                DateTime?                     @map("sent_at")
+  createdAt             DateTime                      @default(now()) @map("created_at")
+  updatedAt             DateTime                      @updatedAt @map("updated_at")
+  issuance              BadgeIssuance                 @relation(fields: [issuanceId], references: [id], onDelete: Restrict)
+  smtpSubmissionAttempt SmtpSubmissionAttempt?
+  attemptHistory        NotificationDeliveryAttempt[]
+  deliveryEvents        NotificationDeliveryEvent[]
 
   @@unique([issuanceId, type])
+  @@index([deliveryChannel, status, nextAttemptAt], map: "notification_deliveries_channel_status_next_idx")
   @@index([status, nextAttemptAt])
   @@index([claimExpiresAt])
   @@index([createdAt])
+  @@index([providerStatus, providerStatusAt], map: "notification_deliveries_provider_status_at_idx")
   @@map("notification_deliveries")
+}
+
+model SmtpSubmissionAttempt {
+  id                     String               @id @default(cuid())
+  notificationDeliveryId String               @unique @map("notification_delivery_id")
+  deliveryChannel        String               @map("delivery_channel") @db.VarChar(20)
+  recipient              String               @db.VarChar(191)
+  acceptanceKey          String?              @unique @map("acceptance_key") @db.VarChar(100)
+  attemptToken           String?              @unique @map("attempt_token") @db.VarChar(191)
+  submissionState        SmtpSubmissionState  @default(NOT_STARTED) @map("submission_state")
+  submissionStartedAt    DateTime?            @map("submission_started_at")
+  smtpCompletedAt        DateTime?            @map("smtp_completed_at")
+  providerMessageId      String?              @map("provider_message_id") @db.VarChar(191)
+  lastErrorCode          String?              @map("last_error_code") @db.VarChar(100)
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+  notificationDelivery   NotificationDelivery @relation(fields: [notificationDeliveryId], references: [id], onDelete: Cascade)
+
+  @@index([submissionState])
+  @@map("smtp_submission_attempts")
+}
+
+model NotificationDeliveryAttempt {
+  id                     String                     @id @default(cuid())
+  notificationDeliveryId String                     @map("notification_delivery_id")
+  attemptNumber          Int                        @map("attempt_number")
+  deliveryChannel        String                     @map("delivery_channel") @db.VarChar(20)
+  outcome                NotificationAttemptOutcome @default(STARTED)
+  providerMessageId      String?                    @map("provider_message_id") @db.VarChar(191)
+  safeDiagnosticCode     String?                    @map("safe_diagnostic_code") @db.VarChar(100)
+  errorCategory          String?                    @map("error_category") @db.VarChar(50)
+  startedAt              DateTime                   @map("started_at")
+  completedAt            DateTime?                  @map("completed_at")
+  createdAt              DateTime                   @default(now()) @map("created_at")
+  updatedAt              DateTime                   @updatedAt @map("updated_at")
+  notificationDelivery   NotificationDelivery       @relation(fields: [notificationDeliveryId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationDeliveryId, attemptNumber], map: "notification_delivery_attempts_delivery_attempt_key")
+  @@index([outcome, startedAt], map: "notification_delivery_attempts_outcome_started_idx")
+  @@map("notification_delivery_attempts")
+}
+
+model NotificationDeliveryEvent {
+  id                     String                      @id @default(cuid())
+  notificationDeliveryId String?                     @map("notification_delivery_id")
+  providerEventId        String                      @unique @map("provider_event_id") @db.VarChar(191)
+  source                 NotificationEventSource     @default(WEBHOOK)
+  eventType              NotificationEventType       @map("event_type")
+  providerStatus         NotificationProviderStatus? @map("provider_status")
+  providerMessageId      String?                     @map("provider_message_id") @db.VarChar(191)
+  recipientEmail         String?                     @map("recipient_email") @db.VarChar(191)
+  occurredAt             DateTime                    @map("occurred_at")
+  receivedAt             DateTime                    @default(now()) @map("received_at")
+  payloadHash            String                      @map("payload_hash") @db.Char(64)
+  applied                Boolean                     @default(false)
+  metadataJson           Json?                       @map("metadata_json")
+  notificationDelivery   NotificationDelivery?       @relation(fields: [notificationDeliveryId], references: [id], onDelete: SetNull)
+
+  @@index([notificationDeliveryId, occurredAt], map: "notification_delivery_events_delivery_occurred_idx")
+  @@index([providerMessageId], map: "notification_delivery_events_provider_message_idx")
+  @@index([eventType, occurredAt], map: "notification_delivery_events_type_occurred_idx")
+  @@map("notification_delivery_events")
+}
+
+model RecipientSuppression {
+  id               String                      @id @default(cuid())
+  normalizedEmail  String                      @unique @map("normalized_email") @db.VarChar(191)
+  recipientEmail   String                      @map("recipient_email") @db.VarChar(191)
+  reason           RecipientSuppressionReason
+  provider         String                      @default("brevo") @db.VarChar(32)
+  providerEventId  String?                     @map("provider_event_id") @db.VarChar(191)
+  sourceDeliveryId String?                     @map("source_delivery_id") @db.VarChar(191)
+  suppressedAt     DateTime                    @map("suppressed_at")
+  evidenceJson     Json?                       @map("evidence_json")
+  status           RecipientSuppressionStatus @default(ACTIVE)
+  clearedAt        DateTime?                   @map("cleared_at")
+  clearedByUserId  String?                     @map("cleared_by_user_id")
+  clearReason      String?                     @map("clear_reason") @db.Text
+  createdAt        DateTime                    @default(now()) @map("created_at")
+  updatedAt        DateTime                    @updatedAt @map("updated_at")
+
+  @@index([status, suppressedAt])
+  @@index([reason, status])
+  @@index([providerEventId])
+  @@map("recipient_suppressions")
 }
 
 model RateLimitBucket {
@@ -538,4 +704,36 @@ model AuditLog {
   @@index([actorUserId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+model StudentAccount {
+  id          String    @id @default(cuid())
+  userId      String    @unique @map("user_id")
+  studentId   String    @unique @map("student_id")
+  activatedAt DateTime? @map("activated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@map("student_accounts")
+}
+
+model StudentToken {
+  id              String           @id @default(cuid())
+  studentId       String           @map("student_id")
+  userId          String?          @map("user_id")
+  type            StudentTokenType
+  tokenHash       String           @unique @map("token_hash") @db.VarChar(191)
+  expiresAt       DateTime         @map("expires_at")
+  usedAt          DateTime?        @map("used_at")
+  createdByUserId String?          @map("created_by_user_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  student         Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  user            User?            @relation("StudentTokenUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy       User?            @relation("StudentTokenCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, type, usedAt])
+  @@index([expiresAt])
+  @@map("student_tokens")
 }
