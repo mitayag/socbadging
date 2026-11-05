@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { IssuanceDetail } from "@/modules/issuance/services/issuance-query-service";
 import type { NotificationDeliveryStatus } from "@/modules/notifications/types";
 import { RevokeCredentialForm } from "./revoke-credential-form";
+import { ResendIssuanceNotificationForm } from "./resend-issuance-notification-form";
 import { replaceCredentialAction } from "@/app/issued/[issuanceId]/replacement-actions";
 
 function formatDate(value: string | null) {
@@ -22,11 +23,13 @@ function mediaUrl(imagePath: string) {
 export function CredentialDetail({
   canRevoke = false,
   canReplace = false,
+  canResend = false,
   detail,
   notificationStatus = null,
 }: {
   canRevoke?: boolean;
   canReplace?: boolean;
+  canResend?: boolean;
   detail: IssuanceDetail;
   notificationStatus?: NotificationDeliveryStatus | null;
 }) {
@@ -162,6 +165,7 @@ export function CredentialDetail({
             Download Credential JSON
           </Link>
         </section>
+        {canResend ? <ResendIssuanceNotificationForm issuanceId={detail.id} /> : null}
         {canRevoke ? <RevokeCredentialForm issuanceId={detail.id} /> : null}
         {canReplace && detail.status === "ACTIVE" && !detail.supersededBy ? (
           <form action={replaceCredentialAction} className="panel credential-panel">

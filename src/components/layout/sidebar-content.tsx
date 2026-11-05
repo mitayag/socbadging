@@ -7,7 +7,7 @@ import type { Actor } from "@/modules/identity/types";
 import { BrandLockup } from "./brand-lockup";
 import { getNavigationItems } from "./navigation";
 
-export function SidebarContent({ actor }: { actor: Actor }) {
+export function SidebarContent({ actor, onNavigate }: { actor: Actor; onNavigate?: () => void }) {
   const pathname = usePathname() ?? "";
   return (
     <div className="sidebar-content">
@@ -25,6 +25,7 @@ export function SidebarContent({ actor }: { actor: Actor }) {
               className={active ? "nav-link active" : "nav-link"}
               href={href}
               key={label}
+              onClick={onNavigate}
             >
               <Icon aria-hidden="true" size={20} strokeWidth={1.8} />
               <span>{label}</span>

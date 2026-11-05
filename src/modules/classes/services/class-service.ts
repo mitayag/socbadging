@@ -1,10 +1,11 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
-  requireAuthenticated,
   requireClassOwner,
   requireRole,
+  requireStaff,
 } from "@/modules/identity/policies/authorization";
 import type { Actor } from "@/modules/identity/types";
 import { prisma } from "@/platform/db/prisma";
@@ -21,33 +22,62 @@ const classSchema = z.object({
   description: z.string().trim().max(4000).optional().or(z.literal("")),
 });
 
+export const classPageSizes = [5, 10, 25, 50] as const;
+export type ClassPageSize = (typeof classPageSizes)[number];
+export type ClassSort = "updated" | "courseCode" | "title" | "status";
+
+function classOrderBy(sort: ClassSort): Prisma.ClassOrderByWithRelationInput[] {
+  if (sort === "courseCode") {
+    return [{ courseCode: "asc" }, { title: "asc" }, { id: "asc" }];
+  }
+  if (sort === "title") return [{ title: "asc" }, { courseCode: "asc" }, { id: "asc" }];
+  if (sort === "status") {
+    return [{ status: "asc" }, { courseCode: "asc" }, { id: "asc" }];
+  }
+  return [{ updatedAt: "desc" }, { id: "desc" }];
+}
+
 export async function listClasses(
   actor: Actor,
   query = "",
   status?: "ACTIVE" | "ARCHIVED",
   page = 1,
+  options: { pageSize?: ClassPageSize; sort?: ClassSort } = {},
 ) {
-  requireAuthenticated(actor);
+  requireStaff(actor);
+  const pageSize = classPageSizes.includes(options.pageSize ?? 5) ? (options.pageSize ?? 5) : 5;
+  const where: Prisma.ClassWhereInput = {
+    ...(actor.role === "FACULTY" ? { ownerUserId: actor.id } : {}),
+    ...(status ? { status } : {}),
+    ...(query
+      ? {
+          OR: [
+            { courseCode: { contains: query } },
+            { title: { contains: query } },
+            { section: { contains: query } },
+          ],
+        }
+      : {}),
+  };
+  const total = await prisma.class.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(1, page), pageCount);
   const rows = await prisma.class.findMany({
-    where: {
-      ...(actor.role === "FACULTY" ? { ownerUserId: actor.id } : {}),
-      status,
-      ...(query
-        ? {
-            OR: [
-              { courseCode: { contains: query } },
-              { title: { contains: query } },
-              { section: { contains: query } },
-            ],
-          }
-        : {}),
-    },
+    where,
     include: { owner: { select: { name: true, email: true } } },
-    orderBy: { updatedAt: "desc" },
-    skip: (Math.max(1, page) - 1) * 20,
-    take: 21,
+    orderBy: classOrderBy(options.sort ?? "updated"),
+    skip: (currentPage - 1) * pageSize,
+    take: pageSize,
   });
-  return { items: rows.slice(0, 20), hasNext: rows.length > 20 };
+  return {
+    items: rows,
+    page: currentPage,
+    pageSize,
+    pageCount,
+    total,
+    hasNext: currentPage < pageCount,
+    hasPrevious: currentPage > 1,
+  };
 }
 
 export async function createClass(actor: Actor, raw: unknown) {

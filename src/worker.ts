@@ -1,7 +1,7 @@
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
 
-import { loadSmtpConfig, loadWorkerConfig } from "./config/env";
+import { loadEmailDeliveryConfig, loadWorkerConfig } from "./config/env";
 import { runDeliveryCycle } from "./modules/notifications/services/delivery-worker";
 import { createSmtpTransport } from "./modules/notifications/services/smtp-client";
 import { recordWorkerHeartbeat } from "./platform/health/worker-heartbeat";
@@ -23,19 +23,17 @@ function createWorkerPrisma(databaseUrl: string): PrismaClient {
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
-const smtpConfig = loadSmtpConfig(process.env);
-if (!smtpConfig.host || !smtpConfig.from) throw new Error("SMTP_HOST and SMTP_FROM are required");
-const workerConfig = loadWorkerConfig(process.env);
+const emailConfig = loadEmailDeliveryConfig(process.env);
+const workerConfig = {
+  ...loadWorkerConfig(process.env),
+  deliveryChannel: emailConfig.mode,
+  recipientPolicy: emailConfig.policy,
+  externalEnabled: emailConfig.externalEnabled,
+  controlledAcceptanceOnly: emailConfig.controlledAcceptanceOnly,
+  allowlist: emailConfig.allowlist,
+};
 const prisma = createWorkerPrisma(databaseUrl);
-const smtp = createSmtpTransport({
-  host: smtpConfig.host,
-  port: smtpConfig.port,
-  secure: smtpConfig.secure,
-  from: smtpConfig.from,
-  ...(smtpConfig.username ? { username: smtpConfig.username } : {}),
-  ...(smtpConfig.password ? { password: smtpConfig.password } : {}),
-  ...(smtpConfig.replyTo ? { replyTo: smtpConfig.replyTo } : {}),
-});
+const smtp = createSmtpTransport(emailConfig.transport);
 
 let stopping = false;
 process.once("SIGTERM", () => (stopping = true));

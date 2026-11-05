@@ -11,7 +11,7 @@ import {
   requireClassOwner,
   requireRole,
 } from "@/modules/identity/policies/authorization";
-import type { Actor } from "@/modules/identity/types";
+import type { Actor, Role } from "@/modules/identity/types";
 import type { IssuanceResult } from "@/modules/issuance/types";
 import { buildOpenBadgeCredential } from "@/modules/open-badges/credential-builder";
 import {
@@ -34,7 +34,10 @@ import {
   generatePublicId,
   type CredentialSnapshots,
 } from "./credential-snapshot";
-import { reserveUnassignedStatusAllocation } from "./status-allocation-service";
+import {
+  reserveUnassignedStatusAllocation,
+  StatusAllocationUnavailableError,
+} from "./status-allocation-service";
 import {
   AchievementSnapshotSchema,
   IssuerSnapshotSchema,
@@ -199,8 +202,8 @@ type IssuanceEnrollment = {
 type IssuanceIssuer = {
   id: string;
   name: string;
-  role: "FACULTY" | "ADMIN";
-  status: "ACTIVE" | "SUSPENDED" | "DELETED";
+  role: Role;
+  status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
   deletedAt?: Date | null;
 };
 
@@ -287,6 +290,20 @@ export class SignedIssuanceError extends Error {
         : `Credential signing could not be validated. No badge was issued. Reference: ${correlationId}.`,
     );
     this.name = "SignedIssuanceError";
+  }
+}
+
+export class IssuanceValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "IssuanceValidationError";
+  }
+}
+
+export class IssuanceConfigurationError extends Error {
+  constructor(message = "Credential signing is not configured. No badge was issued.") {
+    super(message);
+    this.name = "IssuanceConfigurationError";
   }
 }
 
@@ -425,8 +442,18 @@ function requireCurrentFaculty(actor: Actor, issuer: IssuanceIssuer | null): Iss
 }
 
 function readBadgeMetadata(value: Prisma.JsonValue | null): BadgeMetadata {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return { skills: [] };
-  const metadata = value as { skills?: unknown; alignment?: unknown };
+  let normalized: Prisma.JsonValue | null = value;
+  if (typeof normalized === "string") {
+    try {
+      normalized = JSON.parse(normalized) as Prisma.JsonValue;
+    } catch {
+      return { skills: [] };
+    }
+  }
+  if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+    return { skills: [] };
+  }
+  const metadata = normalized as { skills?: unknown; alignment?: unknown };
   const skills = Array.isArray(metadata.skills)
     ? metadata.skills.filter((skill): skill is string => typeof skill === "string")
     : [];
@@ -460,27 +487,29 @@ function assertCurrentSource(
   badgeTemplate: IssuanceBadgeTemplate | null,
   enrollment: IssuanceEnrollment | null,
 ): void {
-  if (!classRecord) throw new Error("Class not found");
+  if (!classRecord) throw new IssuanceValidationError("Class not found");
   requireClassOwner(actor, classRecord.ownerUserId);
-  if (classRecord.status !== "ACTIVE") throw new Error("Class is not active");
+  if (classRecord.status !== "ACTIVE") throw new IssuanceValidationError("Class is not active");
   if (
     !issuer ||
     issuer.role !== "FACULTY" ||
     issuer.status !== "ACTIVE" ||
     issuer.deletedAt != null
   ) {
-    throw new Error("Issuing Faculty account is no longer active");
+    throw new IssuanceValidationError("Issuing Faculty account is no longer active");
   }
-  if (!badgeTemplate) throw new Error("Badge template not found");
+  if (!badgeTemplate) throw new IssuanceValidationError("Badge template not found");
   if (badgeTemplate.classId !== classRecord.id) {
-    throw new Error("Badge template is not available for this class");
+    throw new IssuanceValidationError("Badge template is not available for this class");
   }
   if (badgeTemplate.ownerUserId !== actor.id) {
-    throw new Error("Badge template is not owned by this Faculty member");
+    throw new IssuanceValidationError("Badge template is not owned by this Faculty member");
   }
-  if (badgeTemplate.status !== "ACTIVE") throw new Error("Badge template is not active");
+  if (badgeTemplate.status !== "ACTIVE") {
+    throw new IssuanceValidationError("Badge template is not active");
+  }
   if (!enrollment || enrollment.enrollmentStatus !== "ACTIVE") {
-    throw new Error("Student is not actively enrolled in this class");
+    throw new IssuanceValidationError("Student is not actively enrolled in this class");
   }
 }
 
@@ -601,9 +630,9 @@ async function loadPreparationSource(
     where: { id: input.classId },
     select: classSelect,
   });
-  if (!classRecord) throw new Error("Class not found");
+  if (!classRecord) throw new IssuanceValidationError("Class not found");
   requireClassOwner(actor, classRecord.ownerUserId);
-  if (classRecord.status !== "ACTIVE") throw new Error("Class is not active");
+  if (classRecord.status !== "ACTIVE") throw new IssuanceValidationError("Class is not active");
 
   const issuer = await tx.user.findUnique({
     where: { id: actor.id, role: "FACULTY", status: "ACTIVE" },
@@ -619,7 +648,7 @@ async function loadPreparationSource(
   });
   assertCurrentSource(actor, classRecord, issuer, badgeTemplate, enrollment);
   if (!issuer || !badgeTemplate || !enrollment) {
-    throw new Error("Issuance source is unavailable");
+    throw new IssuanceValidationError("Issuance source is unavailable");
   }
 
   const existingBeforeReservation = selectCurrentIssuance(
@@ -658,11 +687,16 @@ async function loadPreparationSource(
       compromisedAt: true,
     },
   });
-  if (signingKeys.length !== 1 || !signingKeys[0])
-    throw new Error("One active signing key is required");
+  if (signingKeys.length !== 1 || !signingKeys[0]) {
+    throw new IssuanceConfigurationError(
+      "Credential signing is not configured. No badge was issued. Contact an administrator.",
+    );
+  }
   const signingKey = signingKeys[0];
   if (signingKey.algorithm !== "Ed25519" || signingKey.cryptosuite !== "eddsa-rdfc-2022") {
-    throw new Error("Active signing key is unsupported");
+    throw new IssuanceConfigurationError(
+      "The configured signing key is unsupported. No badge was issued.",
+    );
   }
   const now = new Date();
   let tupleClaim;
@@ -685,7 +719,7 @@ async function loadPreparationSource(
       reserved.batchClaimVersion !== batchClaim.claimVersion ||
       reserved.expiresAt <= now
     ) {
-      throw new Error("Issuance tuple reservation is unavailable");
+      throw new IssuanceValidationError("This badge is already being issued. Try again.");
     }
     tupleClaim = reserved;
   } else {
@@ -755,14 +789,22 @@ async function prepareSignedIssuanceWithSigner(
       throw error;
     }
   }
-  if (!preparedSource) throw new Error("Issuance source is unavailable");
+  if (!preparedSource) throw new IssuanceValidationError("Issuance source is unavailable");
 
   try {
     // This separate short transaction makes the status-list locking read its first data access.
     // MariaDB repeatable-read can otherwise raise error 1020 after a concurrent cursor advance.
-    const statusReservation = await prisma.$transaction((tx) =>
-      reserveUnassignedStatusAllocation(tx),
-    );
+    let statusReservation;
+    try {
+      statusReservation = await prisma.$transaction((tx) => reserveUnassignedStatusAllocation(tx));
+    } catch (error) {
+      if (error instanceof StatusAllocationUnavailableError) {
+        throw new IssuanceConfigurationError(
+          "Credential status configuration is unavailable. No badge was issued. Contact an administrator.",
+        );
+      }
+      throw error;
+    }
     const { snapshots, unsigned } = (() => {
       try {
         const currentSnapshots = buildSnapshots({
@@ -1166,9 +1208,11 @@ async function commitPreparedAttempt(
     recipientEmail: currentSnapshots.recipient.email,
     recipientFirstName: currentSnapshots.recipient.firstName,
     badgeName: currentSnapshots.achievement.name,
+    badgeImageUrl: currentSnapshots.achievement.image.id,
     issuerName: currentSnapshots.issuer.name,
     verificationUrl: signed.id,
     occurredAt: issuedAt,
+    expiresAt,
     ...(source.settings.supportContact ? { supportContact: source.settings.supportContact } : {}),
   });
   const released = await tx.issuanceTupleReservation.deleteMany({

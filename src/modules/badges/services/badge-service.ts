@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { requireAuthenticated, requireClassOwner } from "@/modules/identity/policies/authorization";
+import { requireClassOwner, requireStaff } from "@/modules/identity/policies/authorization";
 import type { Actor } from "@/modules/identity/types";
 import { prisma } from "@/platform/db/prisma";
 import { validateBadgeImage } from "@/platform/storage/image-validation";
@@ -41,7 +41,7 @@ export async function listBadges(
   status?: "ACTIVE" | "ARCHIVED",
   page = 1,
 ) {
-  requireAuthenticated(actor);
+  requireStaff(actor);
   const c = await prisma.class.findUniqueOrThrow({
     where: { id: classId },
     select: { ownerUserId: true },

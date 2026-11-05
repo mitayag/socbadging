@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { getServerEnv } from "@/config/env";
 import { AuthorizationError, requireRole } from "@/modules/identity/policies/authorization";
-import type { Actor } from "@/modules/identity/types";
+import type { Actor, Role } from "@/modules/identity/types";
 import { prisma } from "@/platform/db/prisma";
 import {
   PublicSystemSettingsSchema,
@@ -37,8 +37,8 @@ type LockedStoredSettings = Omit<StoredSettings, "sharingEnabled"> & {
 
 type CurrentUser = {
   id: string;
-  role: "ADMIN" | "FACULTY";
-  status: "ACTIVE" | "SUSPENDED" | "DELETED";
+  role: Role;
+  status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
   deletedAt: Date | null;
 };
 

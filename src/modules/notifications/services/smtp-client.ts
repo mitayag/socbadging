@@ -6,6 +6,8 @@ export type SmtpClientConfig = {
   host: string;
   port: number;
   secure: boolean;
+  requireTLS?: boolean;
+  tls?: { rejectUnauthorized: boolean };
   username?: string;
   password?: string;
   from: string;
@@ -21,6 +23,8 @@ export function createSmtpTransport(config: SmtpClientConfig): SmtpTransport {
     host: config.host,
     port: config.port,
     secure: config.secure,
+    ...(config.requireTLS ? { requireTLS: true } : {}),
+    ...(config.tls ? { tls: config.tls } : {}),
     ...(config.username && config.password
       ? { auth: { user: config.username, pass: config.password } }
       : {}),

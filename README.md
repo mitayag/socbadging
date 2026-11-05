@@ -23,7 +23,7 @@ Set these non-secret values in `.env` before issuing credentials:
 
 - `APP_URL` — canonical application URL, used for credential and verification identifiers.
 - `ISSUER_NAME` — defaults to `Holy Angel University — School of Computing`.
-- `ISSUER_URL` — optional canonical issuer URL; blank defaults to `APP_URL`.
+- `ISSUER_URL` — canonical issuer controller URL. For signed issuance it must match the signing-key controller, normally `APP_URL + /api/issuers/hau-soc`. Blank defaults to `APP_URL` for legacy-only setups.
 - `ISSUER_LOGO_PATH` — safe root-relative logo path; defaults to `/images/hausoclogo.png`.
 
 Issuer values are snapshotted when a credential is issued, so later configuration or badge-template changes do not rewrite issued history. Validated Administrator issuer settings are used by future individual and batch issuances, while existing credential snapshots remain unchanged. An Administrator can manage the current public issuer name, canonical URL, logo path, support contact, and sharing visibility at `/settings`; settings and sensitive activity are available from `/audit-logs` without exposing raw audit context or network identifiers.
@@ -40,6 +40,18 @@ Authenticated users can access:
 - `/api/issued/export` and `/api/classes/:classId/issued/export` — authenticated, role-scoped CSV exports.
 
 Batch uploads accept `.csv` and `.xlsx` files up to 2 MiB and 5,000 data rows. Student Number is required; Email is an optional identity cross-check. A stored preview expires after 30 minutes. Only `READY` rows are committed; invalid rows remain excluded and reportable, while already-issued rows are handled idempotently.
+
+## Student portal
+
+Students can activate an account from an Administrator invitation on `/students`, then sign in through the shared login page and land on `/student`. The student portal provides an overview, badge wallet, private credential detail, notification history, profile, and help. Student queries are scoped to the authenticated `StudentAccount`; direct access to another student's credential returns a generic not-found response.
+
+Student activation and recovery use hashed, short-lived, single-use tokens sent to the student's registered email. Recovery requests always return a generic response. The portal reuses the existing session, password hashing, audit, public verification, signed JSON-LD, status-list, and sharing behavior. Badge notifications continue to use the transactional outbox and SMTP worker; activation/recovery emails use the configured SMTP transport without exposing account existence publicly.
+
+## Dashboards and account menu
+
+`/dashboard` is a server-rendered, role-scoped operational overview. Administrators see faculty, class, student, badge-template, issuance, credential-status, trend, recent-activity, and quick-action summaries across the system. Faculty see the same operational view limited to classes and badge templates they currently own. Counts come directly from MariaDB; no dashboard API is required. Active-credential counts exclude revoked and expired records, recipient names are reduced to a first name and last initial, and recent-issuance links remain authorized by the existing issuance policies.
+
+The authenticated top bar exposes a global user menu at every authenticated page and role. It links to My Profile, Account Settings, and Sign Out. `/account` supports display-name and password changes; changing a password verifies the current password, invalidates every active session, writes an audit record, and returns the user to the login page. `/profile` remains the Faculty professional profile and now gives Administrators a profile summary with links to account and issuer settings.
 
 ## Public verification, sharing, and revocation
 
@@ -70,6 +82,8 @@ Individual issuance, newly created rows from batch issuance, and revocation enqu
 
 For local delivery inspection, enable the `notifications` Compose profile and use Mailpit. Production deployments should set the documented `SMTP_*` variables to their provider and run the worker as a separate process. Notification delivery is asynchronous: a successfully issued credential can temporarily show Pending or Retry Scheduled while SMTP recovers.
 
+Brevo SMTP preparation is documented in [the Brevo configuration guide](docs/email/BREVO-CONFIGURATION.md). Mailpit remains the default local transport; external delivery, allowlisting, STARTTLS enforcement, and the Brevo webhook adapter are disabled by default until an authorized controlled test.
+
 Backup, restore, deployment, health, logging, and incident procedures are documented in [the production runbook](docs/operations/production-runbook.md) and [the backup/restore runbook](docs/operations/backup-restore-runbook.md). Restore is intentionally restricted to a target explicitly confirmed as disposable.
 
 Signing-key generation, activation, rotation, retirement, compromise response, and separate backup
@@ -79,7 +93,7 @@ HTTPS deployment, external retrieval, official-suite submission, and certificati
 
 ## Quality gates
 
-Run `npm run format`, `npm run lint`, `npm run typecheck`, `npm test`, `npm audit`, `DATABASE_URL=mysql://badging:badging@127.0.0.1:3306/badging npm run build`, and `docker compose up --build -d --wait` followed by a health check at `/api/health`.
+Run `npm run format`, `npm run lint`, `npm run typecheck`, `npm test`, `npm audit --omit=dev`, `DATABASE_URL=mysql://badging:badging@127.0.0.1:3306/badging npm run build`, and `docker compose up --build -d --wait` followed by a health check at `/api/health`. Residual production dependency advisories and their remediation plan are tracked in [the dependency security baseline](docs/operations/dependency-security.md).
 
 ### MariaDB integration and browser E2E tests
 
@@ -89,15 +103,20 @@ The transaction integration suite is intentionally opt-in and runs from the Comp
 MARIADB_DATABASE=badging MARIADB_USER=badging MARIADB_PASSWORD=smoke-db-password MARIADB_ROOT_PASSWORD=smoke-root-password DATABASE_URL=mysql://badging:smoke-db-password@db:3306/badging TEST_DATABASE_URL=mysql://badging:smoke-db-password@db:3306/badging APP_URL=http://localhost:3000 npm run test:integration:docker
 ```
 
-`TEST_DATABASE_URL` is required by `npm run test:integration`, which prevents the suite from silently using an application or production database URL.
+`TEST_DATABASE_URL` is required by `npm run test:integration`, which prevents the suite from silently using an application or production database URL. The URL must name a dedicated `*_test` or `*_integration` database. Integration and browser E2E runs must use different databases; the suites refuse to run when `TEST_DATABASE_URL` and `E2E_DATABASE_URL` are identical.
 
 The checked-in Playwright regression suite creates, uses, and removes its own random-password fixture users and credential records. It restores the previous issuer settings after the run. Compose binds MariaDB only to `127.0.0.1:3307` for this purpose; do not use this command against production data. With the disposable local Compose database running, run:
 
 ```text
-E2E_CONFIRM_DISPOSABLE_DATABASE=true TEST_DATABASE_URL=mysql://badging:<local-test-password>@127.0.0.1:3307/badging npm run test:e2e
+E2E_CONFIRM_DISPOSABLE_DATABASE=true \
+  TEST_DATABASE_URL=mysql://badging:<local-test-password>@127.0.0.1:3307/badging_test \
+  E2E_DATABASE_URL=mysql://badging:<local-test-password>@127.0.0.1:3307/badging_e2e \
+  npm run test:e2e
 ```
 
 The test command starts a temporary app at `http://127.0.0.1:3100` and exercises signed individual and previewed batch issuance, proof and status-list verification, tamper/expiration/replacement/legacy states, signer outage recovery, anonymous privacy behavior, public headers/rate limiting, Faculty revocation and notification status, Administrator signing settings, responsive two-line branding, and non-owner authorization at desktop and 390×844 mobile viewports. It refuses to run until the explicit disposable-database confirmation is supplied.
+
+Email recipient policy is explicit: `EMAIL_RECIPIENT_POLICY=local` is Mailpit-only; `staging` uses an exact-recipient allowlist; `production` allows only recipients tied to immutable system-issued issuance/student envelopes. Brevo mode fails closed if the policy is missing or invalid. See [the BREVO configuration guide](docs/email/BREVO-CONFIGURATION.md).
 
 Current requirement mappings and Phase 8 evidence are recorded in [the traceability matrix](docs/TRACEABILITY.md) and [local readiness report](docs/conformance/open-badges-3-local-readiness.md). Production HTTPS activation and official 1EdTech conformance submission remain external milestones; local readiness does not make this product certified. Phase 7 history remains in [the Phase 7 matrix](docs/traceability/phase-7-matrix.md), and operational boundaries remain in [known limitations](docs/operations/known-limitations.md).
 

@@ -4,8 +4,12 @@ import { hash, verify } from "argon2";
 
 import type { Actor, Role } from "../types";
 
-type AccountStatus = "ACTIVE" | "SUSPENDED" | "DELETED";
-type AuthenticationUser = Actor & { passwordHash: string; status: AccountStatus };
+type AccountStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
+type AuthenticationUser = Actor & {
+  passwordHash: string;
+  status: AccountStatus;
+  mustChangePassword: boolean;
+};
 
 export type AuthenticationRepository = {
   findByNormalizedEmail(email: string): Promise<AuthenticationUser | null>;
@@ -31,6 +35,6 @@ export async function authenticateWithPassword(
   if (!user || !permitted) return null;
 
   await repository.recordSuccessfulLogin(user.id);
-  const { id, name, role } = user;
-  return { id, name, email: user.email, role: role satisfies Role };
+  const { id, name, role, mustChangePassword } = user;
+  return { id, name, email: user.email, role: role satisfies Role, mustChangePassword };
 }

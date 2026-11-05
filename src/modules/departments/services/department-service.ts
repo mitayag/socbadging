@@ -1,7 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
-import { requireAuthenticated, requireRole } from "@/modules/identity/policies/authorization";
+import { requireRole, requireStaff } from "@/modules/identity/policies/authorization";
 import type { Actor } from "@/modules/identity/types";
 import { prisma } from "@/platform/db/prisma";
 
@@ -12,7 +12,7 @@ export function normalizeDepartmentName(name: string) {
 }
 
 export async function listDepartments(actor: Actor, includeArchived = false) {
-  const authenticated = requireAuthenticated(actor);
+  const authenticated = requireStaff(actor);
   const canIncludeArchived = authenticated.role === "ADMIN" && includeArchived;
   return prisma.department.findMany({
     where: canIncludeArchived ? {} : { status: "ACTIVE" },

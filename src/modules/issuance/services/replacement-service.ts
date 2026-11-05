@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { AuthorizationError } from "@/modules/identity/policies/authorization";
+import type { Role } from "@/modules/identity/types";
 import { enqueueIssuedNotification } from "@/modules/notifications/services/notification-outbox";
 import { buildOpenBadgeCredential } from "@/modules/open-badges/credential-builder";
 import { SignedOpenBadgeCredentialSchema } from "@/modules/open-badges/credential-schema";
@@ -58,7 +59,7 @@ type Original = {
 };
 type CurrentAdmin = {
   id: string;
-  role: "ADMIN" | "FACULTY";
+  role: Role;
   status: string;
   deletedAt: Date | null;
 };
@@ -367,9 +368,11 @@ export async function createSignedReplacement(
           recipientEmail: recipient.email,
           recipientFirstName: recipient.firstName,
           badgeName: achievement.name,
+          badgeImageUrl: achievement.image.id,
           issuerName: issuer.name,
           verificationUrl: signed.id,
           occurredAt: locked.issuedAt,
+          expiresAt: locked.expiresAt,
         });
         return { replacementId: created.id, publicId: created.publicId };
       });

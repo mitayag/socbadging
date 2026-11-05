@@ -63,6 +63,45 @@ describe("login route shared rate limit", () => {
     expect(state.createSession).not.toHaveBeenCalled();
   });
 
+  it("returns the student portal redirect for a STUDENT account", async () => {
+    state.authenticate.mockResolvedValue({
+      id: "student-1",
+      name: "Student User",
+      email: "student@example.edu",
+      role: "STUDENT",
+    });
+    state.createSession.mockResolvedValue({ id: "session-1" });
+
+    const response = await POST(loginRequest("student@example.edu"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      role: "STUDENT",
+      redirectTo: "/student",
+    });
+  });
+
+  it("redirects a student with a required password change to the change-password page", async () => {
+    state.authenticate.mockResolvedValue({
+      id: "student-1",
+      name: "Student User",
+      email: "student@example.edu",
+      role: "STUDENT",
+      mustChangePassword: true,
+    });
+    state.createSession.mockResolvedValue({ id: "session-1" });
+
+    const response = await POST(loginRequest("student@example.edu"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      role: "STUDENT",
+      redirectTo: "/student/change-password",
+    });
+  });
+
   it("isolates normalized account and untrusted client material in the login policy", async () => {
     await POST(loginRequest(" Private.User@Example.edu "));
 

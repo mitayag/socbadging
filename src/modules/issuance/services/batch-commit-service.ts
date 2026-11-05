@@ -84,7 +84,7 @@ type CurrentIssuer = {
   id: string;
   name: string;
   role: "FACULTY" | "ADMIN";
-  status: "ACTIVE" | "SUSPENDED" | "DELETED";
+  status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
 };
 
 type CurrentClass = {

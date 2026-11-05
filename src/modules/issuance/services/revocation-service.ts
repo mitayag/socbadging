@@ -46,7 +46,7 @@ const revocationTestHookKey = Symbol.for("hau-soc-badging.revocation-test-hooks"
 type LockedActor = {
   id: string;
   role: Role;
-  status: "ACTIVE" | "SUSPENDED" | "DELETED";
+  status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
   deletedAt: Date | null;
 };
 
@@ -168,6 +168,11 @@ async function authoritativeLockingRead<T>(read: Promise<T>): Promise<T> {
   }
 }
 
+function parseSnapshotJson<T>(schema: z.ZodType<T>, value: Prisma.JsonValue): T {
+  const normalized = typeof value === "string" ? (JSON.parse(value) as Prisma.JsonValue) : value;
+  return schema.parse(normalized);
+}
+
 function reasonCategory(reason: string): "short" | "medium" | "long" {
   if (reason.length <= 100) return "short";
   if (reason.length <= 500) return "medium";
@@ -287,10 +292,13 @@ async function revokeAttempt(
       },
     },
   });
-  const recipient = RecipientSnapshotSchema.parse(issuance.recipientSnapshotJson);
-  const achievement = AchievementSnapshotSchema.parse(issuance.achievementSnapshotJson);
-  const issuer = IssuerSnapshotSchema.parse(issuance.issuerSnapshotJson);
-  const credential = OpenBadgeCredentialSnapshotSchema.parse(issuance.credentialJson);
+  const recipient = parseSnapshotJson(RecipientSnapshotSchema, issuance.recipientSnapshotJson);
+  const achievement = parseSnapshotJson(
+    AchievementSnapshotSchema,
+    issuance.achievementSnapshotJson,
+  );
+  const issuer = parseSnapshotJson(IssuerSnapshotSchema, issuance.issuerSnapshotJson);
+  const credential = parseSnapshotJson(OpenBadgeCredentialSnapshotSchema, issuance.credentialJson);
   const settings = await tx.systemSetting.findUnique({
     where: { id: "default" },
     select: { supportContact: true },
@@ -300,9 +308,11 @@ async function revokeAttempt(
     recipientEmail: recipient.email,
     recipientFirstName: recipient.firstName,
     badgeName: achievement.name,
+    badgeImageUrl: achievement.image.id,
     issuerName: issuer.name,
     verificationUrl: credential.id,
     occurredAt: revokedAt,
+    expiresAt: issuance.expiresAt,
     ...(settings?.supportContact ? { supportContact: settings.supportContact } : {}),
   });
   await regenerateSignedStatusList(tx, allocation.statusListId, signer);

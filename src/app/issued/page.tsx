@@ -19,6 +19,8 @@ function issuanceFilters(query: Record<string, string | undefined>) {
     classId: query.classId,
     badgeTemplateId: query.badgeTemplateId,
     page: query.page,
+    pageSize: query.pageSize,
+    sort: query.sort === "issued_asc" || query.sort === "status" ? query.sort : undefined,
   });
 }
 
@@ -28,6 +30,7 @@ function exportHref(filters: ReturnType<typeof issuanceFilters>) {
   if (filters.status) params.set("status", filters.status);
   if (filters.classId) params.set("classId", filters.classId);
   if (filters.badgeTemplateId) params.set("badgeTemplateId", filters.badgeTemplateId);
+  if (filters.sort && filters.sort !== "issued_desc") params.set("sort", filters.sort);
   const query = params.toString();
   return `/api/issued/export${query ? `?${query}` : ""}`;
 }
@@ -39,6 +42,7 @@ export default async function IssuedBadgesPage({
 }) {
   const actor = await getCurrentActor();
   if (!actor) redirect("/login");
+  if (actor.role === "STUDENT") redirect("/student");
 
   const filters = issuanceFilters(await searchParams);
   const issued = await listIssuances(actor, filters);
@@ -56,8 +60,12 @@ export default async function IssuedBadgesPage({
         <IssuanceList
           exportHref={exportHref(filters)}
           filters={filters}
+          hasNext={issued.hasNext}
+          hasPrevious={issued.hasPrevious}
           items={issued.items}
           page={issued.page}
+          pageSize={issued.pageSize}
+          total={issued.total}
           totalPages={issued.totalPages}
         />
       </section>

@@ -8,9 +8,13 @@ vi.mock("@/app/notifications/actions", () => ({ retryNotificationFormAction: sta
 import { RetryNotificationForm } from "./retry-notification-form";
 
 describe("RetryNotificationForm", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubGlobal("confirm", () => true);
     state.action.mockResolvedValue({ ok: true, message: "Notification queued for retry." });
   });
 

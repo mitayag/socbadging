@@ -2,13 +2,18 @@
 
 ## Deployment
 
-1. Configure secrets outside source control from `.env.example`; use unique database, bootstrap,
-   and SMTP credentials.
+Production Compose reference:
+`compose.production.yaml`, `deploy/production.env.example`, `deploy/secrets/README.md`, and the Stage
+5D reports (`STAGE5D-*.md`). Development Compose remains `compose.yaml`.
+
+1. Configure secrets outside source control from `deploy/production.env.example` and
+   `deploy/secrets/README.md`; use unique database, bootstrap, and SMTP credentials.
 2. Configure `APP_URL` with the canonical HTTPS URL. Keep `TRUST_PROXY=false` unless a trusted proxy
    overwrites `X-Forwarded-For`.
 3. Create and verify a current database/media backup before deployment.
-4. Follow the signing-key lifecycle runbook, then start `db`, `migrate`, `media-init`, `signer`,
-   `web`, and `worker`; use one worker initially.
+4. Follow the signing-key lifecycle runbook, then start `db-init`, `db`, `migrate`, `media-init`,
+   `signer`, `web`, and `worker`; use one worker initially. Production services use file secrets and
+   pinned image digests.
 5. Confirm the migration container exits successfully with no pending migrations.
 6. Verify `/api/health`, worker health, and a controlled notification through the configured SMTP
    provider.
@@ -51,7 +56,8 @@ SMTP; inspect the Administrator notification dashboard for retryable and termina
 - Media loss: restore the database and matching media archive from the same verified backup set.
 
 Follow the separate backup/restore runbook for every drill. Record recovery point, recovery time,
-row/checksum comparisons, public credential resolution, and media verification.
+row/checksum comparisons, public credential resolution, and media verification. Back up the signing
+key separately with `scripts/backup-signing-key.sh`; never include it in the DB/media backup set.
 
 ## Scaling and known boundaries
 

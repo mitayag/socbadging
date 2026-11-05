@@ -33,8 +33,12 @@ describe("IssuanceList", () => {
       <IssuanceList
         exportHref="/api/issued/export?status=ACTIVE"
         filters={{ query: "Ada", status: "ACTIVE" }}
+        hasNext
+        hasPrevious={false}
         items={items}
         page={1}
+        pageSize={5}
+        total={6}
         totalPages={2}
       />,
     );
@@ -45,7 +49,7 @@ describe("IssuanceList", () => {
     expect(screen.getByRole("textbox", { name: "Class ID" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Badge Template ID" })).toBeInTheDocument();
     expect(screen.getByText("abc123_public")).toBeInTheDocument();
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getAllByText(/Ada Lovelace/).length).toBeGreaterThan(0);
     expect(screen.getByText("Secure Systems")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "View Secure Systems for Ada Lovelace" }),
@@ -54,7 +58,7 @@ describe("IssuanceList", () => {
       "href",
       "/api/issued/export?status=ACTIVE",
     );
-    expect(screen.getByRole("link", { name: "Next Page" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute(
       "href",
       expect.stringContaining("page=2"),
     );
@@ -65,13 +69,18 @@ describe("IssuanceList", () => {
       <IssuanceList
         exportHref="/api/issued/export"
         filters={{}}
+        hasNext={false}
+        hasPrevious={false}
         items={[]}
         page={1}
-        totalPages={0}
+        pageSize={5}
+        total={0}
+        totalPages={1}
       />,
     );
 
     expect(screen.getByText("No issued credentials match these filters.")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Next Page" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Next" })).not.toBeInTheDocument();
+    expect(screen.getByText(/0 issued badges/)).toBeInTheDocument();
   });
 });

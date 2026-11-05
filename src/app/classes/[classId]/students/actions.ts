@@ -28,16 +28,14 @@ export async function editStudentAction(form: FormData) {
   const classId = String(form.get("classId"));
   await editStudent(await actor(), classId, String(form.get("studentId")), fields(form));
   revalidatePath(`/classes/${classId}/students`);
+  redirect(`/classes/${classId}/students?notice=updated`);
 }
 export async function enrollmentAction(form: FormData) {
   const classId = String(form.get("classId"));
-  await setEnrollmentStatus(
-    await actor(),
-    classId,
-    String(form.get("studentId")),
-    String(form.get("status")) === "ACTIVE" ? "ACTIVE" : "REMOVED",
-  );
+  const status = String(form.get("status")) === "ACTIVE" ? "ACTIVE" : "REMOVED";
+  await setEnrollmentStatus(await actor(), classId, String(form.get("studentId")), status);
   revalidatePath(`/classes/${classId}/students`);
+  redirect(`/classes/${classId}/students?notice=${status === "ACTIVE" ? "restored" : "removed"}`);
 }
 export async function commitImportAction(form: FormData) {
   const classId = String(form.get("classId"));

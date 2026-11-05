@@ -21,6 +21,26 @@ describe("notification email templates", () => {
     expect(email.html).toContain(notification.verificationUrl);
   });
 
+  it("renders badge artwork, expiration, and support contact when supplied", () => {
+    const email = renderIssuedEmail({
+      ...notification,
+      badgeImageUrl: "https://badges.example.edu/api/media/badges/test.png",
+      expiresAt: new Date("2026-09-01T00:00:00Z"),
+      supportContact: "support@example.edu",
+    });
+    expect(email.html).toContain("https://badges.example.edu/api/media/badges/test.png");
+    expect(email.html).toContain("expires on");
+    expect(email.html).toContain("support@example.edu");
+    expect(email.text).toContain("Expires:");
+    expect(email.text).toContain("Support:");
+  });
+
+  it("omits an unsafe badge image URL", () => {
+    const email = renderIssuedEmail({ ...notification, badgeImageUrl: "javascript:alert(1)" });
+    expect(email.html).not.toContain("javascript:alert");
+    expect(email.text).not.toContain("javascript:alert");
+  });
+
   it("renders revocation without a private reason", () => {
     const email = renderRevokedEmail({ ...notification, supportContact: "support@example.edu" });
     expect(email.subject.toLowerCase()).toContain("revoked");

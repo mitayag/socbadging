@@ -76,7 +76,7 @@ export type LoadedIssuanceIssuer = {
   id: string;
   name: string;
   role: "FACULTY" | "ADMIN";
-  status: "ACTIVE" | "SUSPENDED" | "DELETED";
+  status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
 };
 
 export type CreateBadgeIssuanceInTransactionInput = {
@@ -271,9 +271,11 @@ export async function createBadgeIssuanceInTransaction(
         recipientEmail: snapshots.recipient.email,
         recipientFirstName: snapshots.recipient.firstName,
         badgeName: snapshots.achievement.name,
+        badgeImageUrl: snapshots.achievement.image.id,
         issuerName: snapshots.issuer.name,
         verificationUrl: snapshots.credential.id,
         occurredAt: input.issuedAt,
+        expiresAt,
       });
 
       return { issuanceId: created.id, publicId: created.publicId };

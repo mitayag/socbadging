@@ -21,6 +21,7 @@ export default async function IssuanceDetailPage({
 }) {
   const actor = await getCurrentActor();
   if (!actor) redirect("/login");
+  if (actor.role === "STUDENT") redirect("/student");
 
   const [{ issuanceId }, query] = await Promise.all([params, searchParams]);
   let detail: Awaited<ReturnType<typeof getIssuanceDetail>>;
@@ -30,7 +31,7 @@ export default async function IssuanceDetailPage({
     if (error instanceof IssuanceNotFoundError) notFound();
     throw error;
   }
-  const notice = ["issued", "existing", "revoked"].includes(query.notice ?? "")
+  const notice = ["issued", "existing", "revoked", "resent"].includes(query.notice ?? "")
     ? query.notice
     : null;
   const canRevoke =
@@ -54,7 +55,18 @@ export default async function IssuanceDetailPage({
           </p>
         ) : null}
         {notice === "revoked" ? <p className="notice">Credential revoked successfully.</p> : null}
+        {notice === "resent" ? (
+          <p className="notice" role="status">
+            Notification queued for resend. Sent means SMTP accepted the message, not inbox
+            delivery.
+          </p>
+        ) : null}
         <CredentialDetail
+          canResend={
+            notificationStatus === "SENT" ||
+            notificationStatus === "FAILED" ||
+            notificationStatus === "RETRY_SCHEDULED"
+          }
           canRevoke={canRevoke}
           canReplace={actor.role === "ADMIN"}
           detail={detail}

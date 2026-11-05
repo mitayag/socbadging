@@ -151,13 +151,16 @@ describe("issued credential downloads", () => {
         'attachment; filename="issued-credentials.csv"',
       );
       expect(await response.text()).toContain("Public ID");
-      expect(state.listIssuanceExportRows).toHaveBeenCalledWith(actor, {
-        query: "Juan",
-        status: "ACTIVE",
-        classId: "class-1",
-        badgeTemplateId: "badge-1",
-        page: 2,
-      });
+      expect(state.listIssuanceExportRows).toHaveBeenCalledWith(
+        actor,
+        expect.objectContaining({
+          query: "Juan",
+          status: "ACTIVE",
+          classId: "class-1",
+          badgeTemplateId: "badge-1",
+          page: 2,
+        }),
+      );
     },
   );
 
@@ -182,11 +185,14 @@ describe("issued credential downloads", () => {
         'attachment; filename="class-class-1-issued-credentials.csv"',
       );
       expect(state.getClassWorkspace).toHaveBeenCalledWith(actor, "class-1");
-      expect(state.listIssuanceExportRows).toHaveBeenCalledWith(actor, {
-        classId: "class-1",
-        query: "Juan",
-        page: 1,
-      });
+      expect(state.listIssuanceExportRows).toHaveBeenCalledWith(
+        actor,
+        expect.objectContaining({
+          classId: "class-1",
+          query: "Juan",
+          page: 1,
+        }),
+      );
     },
   );
 

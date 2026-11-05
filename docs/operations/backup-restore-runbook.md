@@ -4,7 +4,11 @@
 
 The checked-in utilities back up MariaDB and the Compose media volume together. They require an
 explicit Compose project and absolute directory. They never infer a destination, overwrite an
-existing backup directory, or restore without an exact disposable-project confirmation.
+existing backup directory, or restore without an exact disposable-project confirmation. The scripts
+support both `MARIADB_PASSWORD` and the production `MARIADB_PASSWORD_FILE` secret style.
+
+The signing key is excluded by design. Back it up separately with
+`scripts/backup-signing-key.sh` using an encryption passphrase stored away from the archive.
 
 ## Create and verify a backup
 

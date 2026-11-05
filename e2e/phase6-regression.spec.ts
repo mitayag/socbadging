@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test-base";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -105,14 +105,27 @@ test.describe.serial("Phase 6 verification lifecycle", () => {
   test("returns public HTML security headers and generic rate-limit denial", async ({
     request,
   }) => {
-    const response = await request.get(`/credentials/${fixture.E2E_RATE_PUBLIC_ID}`);
+    test.setTimeout(120_000);
+    const windowMs = 60_000;
+    const elapsedInWindow = Date.now() % windowMs;
+    if (elapsedInWindow > 40_000) {
+      // The limiter uses fixed 60-second windows. Start with enough runway so all
+      // requests in this test land in one window; production limits are unchanged.
+      await new Promise((resolve) => setTimeout(resolve, windowMs - elapsedInWindow + 1_000));
+    }
+
+    const path = `/credentials/${fixture.E2E_RATE_PUBLIC_ID}`;
+    const response = await request.get(path);
     expect(response.headers()["referrer-policy"]).toBe("no-referrer");
     expect(response.headers()["x-content-type-options"]).toBe("nosniff");
 
-    let denied = response;
-    for (let attempt = 0; attempt < 61; attempt += 1) {
-      denied = await request.get(`/credentials/${fixture.E2E_RATE_PUBLIC_ID}`);
+    // The first request above counts as 1. Send 59 more allowed requests, then
+    // verify the 61st request in the same fixed window is denied.
+    for (let attempt = 1; attempt < 60; attempt += 1) {
+      const allowed = await request.get(path);
+      expect(allowed.status()).toBe(200);
     }
+    const denied = await request.get(path);
     expect(denied.status()).toBe(429);
     expect(denied.headers()["retry-after"]).toBeTruthy();
     await expect(denied.text()).resolves.not.toContain(fixture.E2E_RATE_PUBLIC_ID);

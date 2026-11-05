@@ -30,6 +30,8 @@ function issuanceFilters(query: Record<string, string | undefined>, classId: str
     classId,
     badgeTemplateId: query.badgeTemplateId,
     page: query.page,
+    pageSize: query.pageSize,
+    sort: query.sort === "issued_asc" || query.sort === "status" ? query.sort : undefined,
   });
 }
 
@@ -38,6 +40,7 @@ function exportHref(classId: string, filters: ReturnType<typeof issuanceFilters>
   if (filters.query) params.set("query", filters.query);
   if (filters.status) params.set("status", filters.status);
   if (filters.badgeTemplateId) params.set("badgeTemplateId", filters.badgeTemplateId);
+  if (filters.sort && filters.sort !== "issued_desc") params.set("sort", filters.sort);
   const query = params.toString();
   return `/api/classes/${encodeURIComponent(classId)}/issued/export${query ? `?${query}` : ""}`;
 }
@@ -51,6 +54,7 @@ export default async function IssuedClassPage({
 }) {
   const actor = await getCurrentActor();
   if (!actor) redirect("/login");
+  if (actor.role === "STUDENT") redirect("/student");
 
   const [{ classId }, query] = await Promise.all([params, searchParams]);
   const filters = issuanceFilters(query, classId);
@@ -108,9 +112,13 @@ export default async function IssuedClassPage({
           exportHref={exportHref(classId, filters)}
           filters={filters}
           fixedClassId={classId}
+          hasNext={issued.hasNext}
+          hasPrevious={issued.hasPrevious}
           items={issued.items}
           page={issued.page}
+          pageSize={issued.pageSize}
           pathname={`/classes/${encodeURIComponent(classId)}/issued`}
+          total={issued.total}
           totalPages={issued.totalPages}
         />
       </section>

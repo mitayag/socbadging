@@ -21,6 +21,7 @@ export default async function IssuanceBatchPage({
 }) {
   const actor = await getCurrentActor();
   if (!actor) redirect("/login");
+  if (actor.role === "STUDENT") redirect("/student");
 
   const [{ batchId }, query] = await Promise.all([params, searchParams]);
   let detail: Awaited<ReturnType<typeof getBatchDetail>>;

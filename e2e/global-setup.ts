@@ -20,6 +20,8 @@ const signedExpiredPublicId = "J".repeat(32);
 const signedTamperedPublicId = "K".repeat(32);
 const signedOriginalPublicId = "L".repeat(32);
 const signedReplacementPublicId = "M".repeat(32);
+const invalidSnapshotPublicId = "P".repeat(32);
+const managementPublicId = "Q".repeat(32);
 
 type SignerFixture = {
   privateKeyPath: string;
@@ -222,11 +224,18 @@ function snapshots(publicId: string, appUrl: string, badgeTemplateId: string) {
 }
 
 export default async function globalSetup() {
-  const databaseUrl = process.env.TEST_DATABASE_URL;
+  const databaseUrl = process.env.E2E_DATABASE_URL ?? process.env.TEST_DATABASE_URL;
   if (!databaseUrl || process.env.E2E_CONFIRM_DISPOSABLE_DATABASE !== "true") {
     throw new Error(
-      "E2E requires TEST_DATABASE_URL and E2E_CONFIRM_DISPOSABLE_DATABASE=true for a disposable local database.",
+      "E2E requires E2E_DATABASE_URL (or TEST_DATABASE_URL) and E2E_CONFIRM_DISPOSABLE_DATABASE=true for a disposable local database.",
     );
+  }
+  if (process.env.TEST_DATABASE_URL && databaseUrl === process.env.TEST_DATABASE_URL) {
+    throw new Error("E2E_DATABASE_URL and TEST_DATABASE_URL must point to different databases");
+  }
+  const e2eDatabaseName = decodeURIComponent(new URL(databaseUrl).pathname.slice(1));
+  if (!/(^|[_-])e2e([_-]|$)/i.test(e2eDatabaseName)) {
+    throw new Error("E2E_DATABASE_URL must name a dedicated disposable E2E database");
   }
   const appUrl = (process.env.E2E_BASE_URL ?? "http://127.0.0.1:3100").replace(/\/+$/, "");
   const fixturePath = resolve(process.cwd(), ".playwright-e2e-fixture.json");
@@ -240,6 +249,9 @@ export default async function globalSetup() {
     faculty: `${prefix}faculty`,
     nonOwner: `${prefix}non-owner`,
     class: `${prefix}class`,
+    classTwo: `${prefix}class-two`,
+    badgeTwo: `${prefix}badge-two`,
+    activeTwo: `${prefix}issuance-active-two`,
     badgeActive: `${prefix}badge-active`,
     badgeExpired: `${prefix}badge-expired`,
     badgeRevoked: `${prefix}badge-revoked`,
@@ -247,6 +259,26 @@ export default async function globalSetup() {
     badgeDesktopRevocable: `${prefix}badge-desktop-revocable`,
     badgeMobileRevocable: `${prefix}badge-mobile-revocable`,
     student: `${prefix}student`,
+    studentUser: `${prefix}student-user`,
+    studentAccount: `${prefix}student-account`,
+    otherStudent: `${prefix}other-student`,
+    otherStudentIssuance: `${prefix}other-student-issuance`,
+    activationStudent: `${prefix}activation-student`,
+    activationToken: `${prefix}activation-token`,
+    activationStudentMobile: `${prefix}activation-student-mobile`,
+    activationTokenMobile: `${prefix}activation-token-mobile`,
+    recoveryStudent: `${prefix}recovery-student`,
+    recoveryUser: `${prefix}recovery-user`,
+    recoveryToken: `${prefix}recovery-token`,
+    recoveryStudentMobile: `${prefix}recovery-student-mobile`,
+    recoveryUserMobile: `${prefix}recovery-user-mobile`,
+    recoveryTokenMobile: `${prefix}recovery-token-mobile`,
+    managementStudent: `${prefix}management-student`,
+    managementUser: `${prefix}management-user`,
+    resetStudent: `${prefix}reset-student`,
+    resetUser: `${prefix}reset-user`,
+    resetStudentMobile: `${prefix}reset-student-mobile`,
+    resetUserMobile: `${prefix}reset-user-mobile`,
     active: `${prefix}issuance-active`,
     expired: `${prefix}issuance-expired`,
     revoked: `${prefix}issuance-revoked`,
@@ -320,6 +352,60 @@ export default async function globalSetup() {
         role: "FACULTY",
         status: "ACTIVE",
       },
+      {
+        id: ids.studentUser,
+        name: "E2E Student",
+        email: "e2e-recipient@example.test",
+        normalizedEmail: "e2e-recipient@example.test",
+        passwordHash,
+        role: "STUDENT",
+        status: "ACTIVE",
+      },
+      {
+        id: ids.recoveryUser,
+        name: "E2E Recovery Student",
+        email: "e2e-recovery-student@example.test",
+        normalizedEmail: "e2e-recovery-student@example.test",
+        passwordHash,
+        role: "STUDENT",
+        status: "ACTIVE",
+      },
+      {
+        id: ids.recoveryUserMobile,
+        name: "E2E Recovery Student Mobile",
+        email: "e2e-recovery-student-mobile@example.test",
+        normalizedEmail: "e2e-recovery-student-mobile@example.test",
+        passwordHash,
+        role: "STUDENT",
+        status: "ACTIVE",
+      },
+      {
+        id: ids.managementUser,
+        name: "E2E Management Student",
+        email: "e2e-management-student@example.test",
+        normalizedEmail: "e2e-management-student@example.test",
+        passwordHash,
+        role: "STUDENT",
+        status: "ACTIVE",
+      },
+      {
+        id: ids.resetUser,
+        name: "E2E Reset Student",
+        email: "e2e-reset-student@example.test",
+        normalizedEmail: "e2e-reset-student@example.test",
+        passwordHash,
+        role: "STUDENT",
+        status: "ACTIVE",
+      },
+      {
+        id: ids.resetUserMobile,
+        name: "E2E Reset Student Mobile",
+        email: "e2e-reset-student-mobile@example.test",
+        normalizedEmail: "e2e-reset-student-mobile@example.test",
+        passwordHash,
+        role: "STUDENT",
+        status: "ACTIVE",
+      },
     ],
   });
   await prisma.class.create({
@@ -334,17 +420,150 @@ export default async function globalSetup() {
       status: "ACTIVE",
     },
   });
-  await prisma.student.create({
+  await prisma.class.create({
     data: {
-      id: ids.student,
-      studentNumber: "e2e-internal-student",
-      firstName: "E2E",
-      lastName: "Recipient",
-      email: "e2e-recipient@example.test",
+      id: ids.classTwo,
+      ownerUserId: ids.faculty,
+      courseCode: "E2E-601",
+      title: "Phase 6 E2E Second",
+      section: "B",
+      term: "Test",
+      academicYear: "2026-2027",
+      status: "ACTIVE",
     },
   });
-  await prisma.classStudent.create({
-    data: { classId: ids.class, studentId: ids.student, enrollmentStatus: "ACTIVE" },
+  await prisma.student.createMany({
+    data: [
+      {
+        id: ids.student,
+        studentNumber: "e2e-internal-student",
+        firstName: "E2E",
+        lastName: "Recipient",
+        email: "e2e-recipient@example.test",
+      },
+      {
+        id: ids.otherStudent,
+        studentNumber: "e2e-other-student",
+        firstName: "Other",
+        lastName: "Student",
+        email: "e2e-other-student@example.test",
+      },
+      {
+        id: ids.activationStudent,
+        studentNumber: "e2e-activation-student",
+        firstName: "Activation",
+        lastName: "Student",
+        email: "e2e-activation-student@example.test",
+      },
+      {
+        id: ids.recoveryStudent,
+        studentNumber: "e2e-recovery-student",
+        firstName: "Recovery",
+        lastName: "Student",
+        email: "e2e-recovery-student@example.test",
+      },
+      {
+        id: ids.activationStudentMobile,
+        studentNumber: "e2e-activation-student-mobile",
+        firstName: "Activation",
+        lastName: "Student Mobile",
+        email: "e2e-activation-student-mobile@example.test",
+      },
+      {
+        id: ids.recoveryStudentMobile,
+        studentNumber: "e2e-recovery-student-mobile",
+        firstName: "Recovery",
+        lastName: "Student Mobile",
+        email: "e2e-recovery-student-mobile@example.test",
+      },
+      {
+        id: ids.managementStudent,
+        studentNumber: "e2e-management-student",
+        firstName: "Management",
+        lastName: "Student",
+        email: "e2e-management-student@example.test",
+      },
+      {
+        id: ids.resetStudent,
+        studentNumber: "e2e-reset-student",
+        firstName: "Reset",
+        lastName: "Student",
+        email: "e2e-reset-student@example.test",
+      },
+      {
+        id: ids.resetStudentMobile,
+        studentNumber: "e2e-reset-student-mobile",
+        firstName: "Reset",
+        lastName: "Student Mobile",
+        email: "e2e-reset-student-mobile@example.test",
+      },
+    ],
+  });
+  await prisma.classStudent.createMany({
+    data: [
+      { classId: ids.class, studentId: ids.student, enrollmentStatus: "ACTIVE" },
+      { classId: ids.class, studentId: ids.managementStudent, enrollmentStatus: "ACTIVE" },
+      { classId: ids.class, studentId: ids.resetStudent, enrollmentStatus: "ACTIVE" },
+      { classId: ids.class, studentId: ids.resetStudentMobile, enrollmentStatus: "ACTIVE" },
+    ],
+  });
+  await prisma.studentAccount.createMany({
+    data: [
+      { userId: ids.studentUser, studentId: ids.student, activatedAt: new Date() },
+      { userId: ids.recoveryUser, studentId: ids.recoveryStudent, activatedAt: new Date() },
+      {
+        userId: ids.recoveryUserMobile,
+        studentId: ids.recoveryStudentMobile,
+        activatedAt: new Date(),
+      },
+      {
+        userId: ids.managementUser,
+        studentId: ids.managementStudent,
+        activatedAt: new Date(),
+      },
+      { userId: ids.resetUser, studentId: ids.resetStudent, activatedAt: new Date() },
+      { userId: ids.resetUserMobile, studentId: ids.resetStudentMobile, activatedAt: new Date() },
+    ],
+  });
+  const activationToken = `phase9-activation-${randomUUID()}`;
+  const activationTokenMobile = `phase9-activation-mobile-${randomUUID()}`;
+  const recoveryToken = `phase9-recovery-${randomUUID()}`;
+  const recoveryTokenMobile = `phase9-recovery-mobile-${randomUUID()}`;
+  await prisma.studentToken.createMany({
+    data: [
+      {
+        id: ids.activationToken,
+        studentId: ids.activationStudent,
+        type: "ACTIVATION",
+        tokenHash: createHash("sha256").update(activationToken).digest("hex"),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        createdByUserId: ids.admin,
+      },
+      {
+        id: ids.recoveryToken,
+        studentId: ids.recoveryStudent,
+        userId: ids.recoveryUser,
+        type: "RECOVERY",
+        tokenHash: createHash("sha256").update(recoveryToken).digest("hex"),
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+      {
+        id: ids.activationTokenMobile,
+        studentId: ids.activationStudentMobile,
+        type: "ACTIVATION",
+        tokenHash: createHash("sha256").update(activationTokenMobile).digest("hex"),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        createdByUserId: ids.admin,
+      },
+      {
+        id: ids.recoveryTokenMobile,
+        studentId: ids.recoveryStudentMobile,
+        userId: ids.recoveryUserMobile,
+        type: "RECOVERY",
+        tokenHash: createHash("sha256").update(recoveryTokenMobile).digest("hex"),
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    ],
   });
   await prisma.badgeTemplate.createMany({
     data: [
@@ -386,6 +605,69 @@ export default async function globalSetup() {
       imagePath: "badges/e2e.png",
       status: "ACTIVE",
     })),
+  });
+  await prisma.badgeTemplate.create({
+    data: {
+      id: ids.badgeTwo,
+      classId: ids.classTwo,
+      ownerUserId: ids.faculty,
+      name: "Phase 6 E2E Second Class Badge",
+      description: "E2E second class",
+      criteria: "E2E",
+      imagePath: "badges/e2e.png",
+      status: "ACTIVE",
+    },
+  });
+  const secondClassSnapshots = snapshots("O".repeat(32), appUrl, ids.badgeTwo);
+  secondClassSnapshots.achievement.class = {
+    id: ids.classTwo,
+    courseCode: "E2E-601",
+    title: "Phase 6 E2E Second",
+    section: "B",
+    term: "Test",
+    academicYear: "2026-2027",
+  };
+  await prisma.badgeIssuance.create({
+    data: {
+      id: ids.activeTwo,
+      publicId: "O".repeat(32),
+      classId: ids.classTwo,
+      badgeTemplateId: ids.badgeTwo,
+      studentId: ids.student,
+      issuerUserId: ids.faculty,
+      status: "ACTIVE",
+      issuedAt: new Date(Date.now() - 30 * 60 * 1000),
+      recipientSnapshotJson: secondClassSnapshots.recipient,
+      achievementSnapshotJson: secondClassSnapshots.achievement,
+      issuerSnapshotJson: secondClassSnapshots.issuer,
+      credentialJson: secondClassSnapshots.credential,
+      snapshotVersion: 1,
+    },
+  });
+  await prisma.badgeIssuance.create({
+    data: {
+      id: ids.otherStudentIssuance,
+      publicId: "N".repeat(32),
+      classId: ids.class,
+      badgeTemplateId: ids.badgeActive,
+      studentId: ids.otherStudent,
+      issuerUserId: ids.faculty,
+      status: "ACTIVE",
+      issuedAt: new Date("2026-08-15T08:00:00.000Z"),
+      recipientSnapshotJson: {
+        ...snapshots("N".repeat(32), appUrl, ids.badgeActive).recipient,
+        studentId: ids.otherStudent,
+        studentNumber: "e2e-other-student",
+        displayName: "Other Student",
+        firstName: "Other",
+        lastName: "Student",
+        email: "e2e-other-student@example.test",
+      },
+      achievementSnapshotJson: snapshots("N".repeat(32), appUrl, ids.badgeActive).achievement,
+      issuerSnapshotJson: snapshots("N".repeat(32), appUrl, ids.badgeActive).issuer,
+      credentialJson: snapshots("N".repeat(32), appUrl, ids.badgeActive).credential,
+      snapshotVersion: 1,
+    },
   });
   for (const [id, publicId, badgeTemplateId, status, expiresAt, revokedAt, revocationReason] of [
     [ids.active, activePublicId, ids.badgeActive, "ACTIVE", null, null, null],
@@ -449,6 +731,11 @@ export default async function globalSetup() {
       },
     });
   }
+
+  await prisma.badgeIssuance.update({
+    where: { id: ids.active },
+    data: { issuedAt: new Date(Date.now() - 60 * 60 * 1000) },
+  });
 
   const statusListUrl = `${signerFixture.appUrl}/api/status-lists/${ids.statusList}`;
   await prisma.signingKey.create({
@@ -604,6 +891,137 @@ export default async function globalSetup() {
     where: { id: ids.signedReplacement },
     data: { supersedesId: ids.signedOriginal },
   });
+  const resetSnapshot = snapshots("R".repeat(32), appUrl, ids.badgeActive);
+  resetSnapshot.recipient = {
+    studentId: ids.resetStudent,
+    studentNumber: "e2e-reset-student",
+    displayName: "Reset Student",
+    firstName: "Reset",
+    lastName: "Student",
+    email: "e2e-reset-student@example.test",
+  };
+  await prisma.badgeIssuance.create({
+    data: {
+      id: `${prefix}reset-issuance`,
+      publicId: "R".repeat(32),
+      classId: ids.class,
+      badgeTemplateId: ids.badgeActive,
+      studentId: ids.resetStudent,
+      issuerUserId: ids.faculty,
+      status: "ACTIVE",
+      issuedAt: new Date(),
+      recipientSnapshotJson: jsonValue(resetSnapshot.recipient),
+      achievementSnapshotJson: jsonValue(resetSnapshot.achievement),
+      issuerSnapshotJson: jsonValue(resetSnapshot.issuer),
+      credentialJson: jsonValue(resetSnapshot.credential),
+      snapshotVersion: 1,
+    },
+  });
+  const resetSnapshotMobile = snapshots("S".repeat(32), appUrl, ids.badgeActive);
+  resetSnapshotMobile.recipient = {
+    studentId: ids.resetStudentMobile,
+    studentNumber: "e2e-reset-student-mobile",
+    displayName: "Reset Student Mobile",
+    firstName: "Reset",
+    lastName: "Student Mobile",
+    email: "e2e-reset-student-mobile@example.test",
+  };
+  await prisma.badgeIssuance.create({
+    data: {
+      id: `${prefix}reset-issuance-mobile`,
+      publicId: "S".repeat(32),
+      classId: ids.class,
+      badgeTemplateId: ids.badgeActive,
+      studentId: ids.resetStudentMobile,
+      issuerUserId: ids.faculty,
+      status: "ACTIVE",
+      issuedAt: new Date(),
+      recipientSnapshotJson: jsonValue(resetSnapshotMobile.recipient),
+      achievementSnapshotJson: jsonValue(resetSnapshotMobile.achievement),
+      issuerSnapshotJson: jsonValue(resetSnapshotMobile.issuer),
+      credentialJson: jsonValue(resetSnapshotMobile.credential),
+      snapshotVersion: 1,
+    },
+  });
+  const managementSnapshot = snapshots(managementPublicId, appUrl, ids.badgeActive);
+  managementSnapshot.recipient = {
+    studentId: ids.managementStudent,
+    studentNumber: "e2e-management-student",
+    displayName: "Management Student",
+    firstName: "Management",
+    lastName: "Student",
+    email: "e2e-management-student@example.test",
+  };
+  await prisma.badgeIssuance.create({
+    data: {
+      id: `${prefix}management-issuance`,
+      publicId: managementPublicId,
+      classId: ids.class,
+      badgeTemplateId: ids.badgeActive,
+      studentId: ids.managementStudent,
+      issuerUserId: ids.faculty,
+      status: "ACTIVE",
+      issuedAt: new Date(),
+      recipientSnapshotJson: jsonValue(managementSnapshot.recipient),
+      achievementSnapshotJson: jsonValue(managementSnapshot.achievement),
+      issuerSnapshotJson: jsonValue(managementSnapshot.issuer),
+      credentialJson: jsonValue(managementSnapshot.credential),
+      snapshotVersion: 1,
+    },
+  });
+  await prisma.badgeIssuance.create({
+    data: {
+      id: `${prefix}invalid-snapshot`,
+      publicId: invalidSnapshotPublicId,
+      classId: ids.class,
+      badgeTemplateId: ids.badgeActive,
+      studentId: ids.student,
+      issuerUserId: ids.faculty,
+      status: "ACTIVE",
+      issuedAt: new Date(),
+      recipientSnapshotJson: jsonValue({}),
+      achievementSnapshotJson: jsonValue({}),
+      issuerSnapshotJson: jsonValue({}),
+      credentialJson: jsonValue({}),
+      snapshotVersion: 1,
+    },
+  });
+  await prisma.notificationDelivery.create({
+    data: {
+      id: `${prefix}notification-active`,
+      issuanceId: ids.active,
+      type: "BADGE_ISSUED",
+      status: "SENT",
+      recipientEmail: "e2e-recipient@example.test",
+      recipientFirstName: "E2E",
+      badgeName: "Phase 6 E2E Badge",
+      issuerName: "E2E Issuer",
+      verificationUrl: `${appUrl}/credentials/${activePublicId}`,
+      supportContact: null,
+      occurredAt: new Date("2026-08-15T08:00:00.000Z"),
+      attemptCount: 1,
+      sentAt: new Date("2026-08-15T08:01:00.000Z"),
+      providerMessageId: "e2e-provider-message",
+    },
+  });
+  await prisma.notificationDelivery.create({
+    data: {
+      id: `${prefix}notification-resend-mobile`,
+      issuanceId: ids.rate,
+      type: "BADGE_ISSUED",
+      status: "SENT",
+      recipientEmail: "e2e-recipient@example.test",
+      recipientFirstName: "E2E",
+      badgeName: "E2E Resend Mobile Badge",
+      issuerName: "E2E Issuer",
+      verificationUrl: `${appUrl}/credentials/${ratePublicId}`,
+      supportContact: null,
+      occurredAt: new Date("2026-08-15T08:00:00.000Z"),
+      attemptCount: 1,
+      sentAt: new Date("2026-08-15T08:01:00.000Z"),
+      providerMessageId: "e2e-provider-message-mobile",
+    },
+  });
   await prisma.notificationDelivery.createMany({
     data: (
       [
@@ -648,6 +1066,53 @@ export default async function globalSetup() {
     },
   });
 
+  await prisma.auditLog.createMany({
+    data: [
+      {
+        actorUserId: ids.faculty,
+        action: "badge.issued",
+        entityType: "BadgeIssuance",
+        entityId: ids.active,
+        createdAt: new Date(Date.now() - 5 * 60 * 1000),
+      },
+      {
+        actorUserId: ids.faculty,
+        action: "class.created",
+        entityType: "Class",
+        entityId: ids.class,
+        createdAt: new Date(Date.now() - 15 * 60 * 1000),
+      },
+      {
+        actorUserId: ids.faculty,
+        action: "badge.revoked",
+        entityType: "BadgeIssuance",
+        entityId: ids.revoked,
+        createdAt: new Date(Date.now() - 30 * 60 * 1000),
+      },
+      {
+        actorUserId: ids.admin,
+        action: "settings.updated",
+        entityType: "SystemSetting",
+        entityId: "default",
+        createdAt: new Date(Date.now() - 45 * 60 * 1000),
+      },
+      {
+        actorUserId: ids.faculty,
+        action: "class.updated",
+        entityType: "Class",
+        entityId: ids.class,
+        createdAt: new Date(Date.now() - 60 * 60 * 1000),
+      },
+      {
+        actorUserId: ids.admin,
+        action: "badge.updated",
+        entityType: "BadgeTemplate",
+        entityId: ids.badgeActive,
+        createdAt: new Date(Date.now() - 75 * 60 * 1000),
+      },
+    ],
+  });
+
   const fixture = {
     E2E_ACTIVE_PUBLIC_ID: activePublicId,
     E2E_EXPIRED_PUBLIC_ID: expiredPublicId,
@@ -663,6 +1128,30 @@ export default async function globalSetup() {
     E2E_ADMIN_PASSWORD: password,
     E2E_NON_OWNER_EMAIL: "phase6-e2e-nonowner@example.test",
     E2E_NON_OWNER_PASSWORD: password,
+    E2E_STUDENT_EMAIL: "e2e-recipient@example.test",
+    E2E_STUDENT_PASSWORD: password,
+    E2E_MANAGEMENT_STUDENT_ID: ids.managementStudent,
+    E2E_MANAGEMENT_STUDENT_NUMBER: "e2e-management-student",
+    E2E_MANAGEMENT_STUDENT_EMAIL: "e2e-management-student@example.test",
+    E2E_MANAGEMENT_PUBLIC_ID: managementPublicId,
+    E2E_MANAGEMENT_ISSUANCE_ID: `${prefix}management-issuance`,
+    E2E_RESET_STUDENT_NUMBER: "e2e-reset-student",
+    E2E_RESET_STUDENT_EMAIL: "e2e-reset-student@example.test",
+    E2E_RESET_STUDENT_PUBLIC_ID: "R".repeat(32),
+    E2E_RESET_STUDENT_MOBILE_NUMBER: "e2e-reset-student-mobile",
+    E2E_RESET_STUDENT_MOBILE_EMAIL: "e2e-reset-student-mobile@example.test",
+    E2E_RESET_STUDENT_MOBILE_PUBLIC_ID: "S".repeat(32),
+    E2E_ACTIVATION_TOKEN_DESKTOP: activationToken,
+    E2E_ACTIVATION_EMAIL_DESKTOP: "e2e-activation-student@example.test",
+    E2E_ACTIVATION_TOKEN_MOBILE: activationTokenMobile,
+    E2E_ACTIVATION_EMAIL_MOBILE: "e2e-activation-student-mobile@example.test",
+    E2E_RECOVERY_TOKEN_DESKTOP: recoveryToken,
+    E2E_RECOVERY_EMAIL_DESKTOP: "e2e-recovery-student@example.test",
+    E2E_RECOVERY_TOKEN_MOBILE: recoveryTokenMobile,
+    E2E_RECOVERY_EMAIL_MOBILE: "e2e-recovery-student-mobile@example.test",
+    E2E_RESEND_BADGE_DESKTOP: "Phase 6 E2E Badge",
+    E2E_RESEND_BADGE_MOBILE: "E2E Resend Mobile Badge",
+    E2E_OTHER_STUDENT_ISSUANCE_ID: ids.otherStudentIssuance,
     E2E_DESKTOP_NOTIFICATION_ID: ids.desktopNotification,
     E2E_MOBILE_NOTIFICATION_ID: ids.mobileNotification,
     E2E_SIGNED_DESKTOP_PUBLIC_ID: signedDesktopPublicId,
@@ -671,6 +1160,7 @@ export default async function globalSetup() {
     E2E_SIGNED_TAMPERED_PUBLIC_ID: signedTamperedPublicId,
     E2E_SIGNED_ORIGINAL_PUBLIC_ID: signedOriginalPublicId,
     E2E_SIGNED_REPLACEMENT_PUBLIC_ID: signedReplacementPublicId,
+    E2E_INVALID_SNAPSHOT_PUBLIC_ID: invalidSnapshotPublicId,
     E2E_SIGNED_DESKTOP_ISSUANCE_ID: ids.signedDesktop,
     E2E_SIGNED_MOBILE_ISSUANCE_ID: ids.signedMobile,
     E2E_SIGNER_CONTROL_TOKEN: signerFixture.signerControlToken,

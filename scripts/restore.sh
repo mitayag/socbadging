@@ -26,9 +26,14 @@ case "$INPUT" in /*) ;; *) echo "Backup input must be an absolute path." >&2; ex
 [ "$INPUT" != "/" ] || { echo "Refusing broad backup input path." >&2; exit 64; }
 
 "$(dirname "$0")/verify-backup.sh" --input "$INPUT" >/dev/null
-docker compose -p "$PROJECT" exec -T db sh -lc \
-  'exec mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE"' \
-  < "$INPUT/database.sql"
+docker compose -p "$PROJECT" exec -T db sh -lc '
+  if [ -n "${MARIADB_PASSWORD_FILE:-}" ] && [ -f "$MARIADB_PASSWORD_FILE" ]; then
+    password="$(cat "$MARIADB_PASSWORD_FILE")"
+  else
+    password="${MARIADB_PASSWORD:-}"
+  fi
+  exec mariadb -u"$MARIADB_USER" -p"$password" "$MARIADB_DATABASE"
+' < "$INPUT/database.sql"
 
 MEDIA_VOLUME="${PROJECT}_media_data"
 docker volume inspect "$MEDIA_VOLUME" >/dev/null

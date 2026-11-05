@@ -7,7 +7,15 @@ export const prismaAuthenticationRepository: AuthenticationRepository = {
   findByNormalizedEmail: (email) =>
     prisma.user.findUnique({
       where: { normalizedEmail: email },
-      select: { id: true, name: true, email: true, passwordHash: true, role: true, status: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        passwordHash: true,
+        role: true,
+        status: true,
+        mustChangePassword: true,
+      },
     }),
   recordSuccessfulLogin: async (userId) => {
     await prisma.$transaction([

@@ -13,8 +13,8 @@ import {
 } from "@/modules/issuance/batch-types";
 import {
   AuthorizationError,
-  requireAuthenticated,
   requireRole,
+  requireStaff,
 } from "@/modules/identity/policies/authorization";
 import type { Actor } from "@/modules/identity/types";
 import {
@@ -462,7 +462,7 @@ export async function getBatchDetail(
   actor: Actor | null | undefined,
   batchId: string,
 ): Promise<BatchDetail> {
-  const authenticated = requireAuthenticated(actor);
+  const authenticated = requireStaff(actor);
   const id = batchIdSchema.safeParse(batchId);
   if (!id.success) throw new BatchNotFoundError();
   const record = await prisma.issuanceBatch.findFirst({
@@ -480,7 +480,7 @@ export async function listClassBatches(
   actor: Actor | null | undefined,
   classId: string,
 ): Promise<BatchHistoryItem[]> {
-  const authenticated = requireAuthenticated(actor);
+  const authenticated = requireStaff(actor);
   const id = batchIdSchema.safeParse(classId);
   if (!id.success) return [];
   const records = await prisma.issuanceBatch.findMany({
