@@ -9,6 +9,11 @@ type ShareControlsProps = {
   text: string;
   sharingEnabled: boolean;
   qrSrc?: string;
+  credentialName?: string;
+  issuerName?: string;
+  issuedAt?: string;
+  credentialStatus?: "ACTIVE" | "REVOKED" | "EXPIRED";
+  credentialPublicId?: string;
 };
 
 function externalLink(url: string) {
@@ -21,6 +26,11 @@ export function ShareControls({
   text,
   sharingEnabled,
   qrSrc,
+  credentialName,
+  issuerName,
+  issuedAt,
+  credentialStatus,
+  credentialPublicId,
 }: ShareControlsProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [canNativeShare, setCanNativeShare] = useState(false);
@@ -37,6 +47,21 @@ export function ShareControls({
   }
 
   const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?${new URLSearchParams({ url: canonicalUrl })}`;
+  let linkedInProfileUrl: string | null = null;
+  if (credentialName && issuerName && issuedAt && credentialStatus === "ACTIVE") {
+    const issued = new Date(issuedAt);
+    if (!Number.isNaN(issued.valueOf())) {
+      linkedInProfileUrl = `https://www.linkedin.com/profile/add?${new URLSearchParams({
+        startTask: "CERTIFICATION_NAME",
+        name: credentialName,
+        organizationName: issuerName,
+        issueYear: String(issued.getUTCFullYear()),
+        issueMonth: String(issued.getUTCMonth() + 1),
+        certUrl: canonicalUrl,
+        certId: credentialPublicId ?? canonicalUrl,
+      })}`;
+    }
+  }
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?${new URLSearchParams({ u: canonicalUrl })}`;
   const xUrl = `https://x.com/intent/post?${new URLSearchParams({ text, url: canonicalUrl })}`;
   const emailUrl = `mailto:?${new URLSearchParams({ subject: title, body: `${text}\n\n${canonicalUrl}` })}`;
@@ -79,6 +104,15 @@ export function ShareControls({
           <button className="secondary-button" onClick={nativeShare} type="button">
             Share Verification Link
           </button>
+        ) : null}
+        {linkedInProfileUrl ? (
+          <a
+            aria-label="Add certification to LinkedIn profile"
+            className="secondary-button export-link"
+            {...externalLink(linkedInProfileUrl)}
+          >
+            Add to LinkedIn Profile
+          </a>
         ) : null}
         <a
           aria-label="Share on LinkedIn"

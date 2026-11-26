@@ -13,6 +13,7 @@ export const sensitiveAuditActions = [
   "AUTH_LOGIN_FAILED",
   "account.updated",
   "account.password_changed",
+  "administrator.password_reset",
   "student.invitation_created",
   "student.account_activated",
   "student.account_suspended",

@@ -260,6 +260,9 @@ services:
       NOTIFICATION_MAX_ATTEMPTS: ${NOTIFICATION_MAX_ATTEMPTS:-5}
       NOTIFICATION_RETRY_BASE_DELAY_SECONDS: ${NOTIFICATION_RETRY_BASE_DELAY_SECONDS:-60}
       NOTIFICATION_BATCH_SIZE: ${NOTIFICATION_BATCH_SIZE:-20}
+      NOTIFICATION_CYCLE_TIMEOUT_MS: ${NOTIFICATION_CYCLE_TIMEOUT_MS:-60000}
+    volumes:
+      - media_data:/app/storage:ro
     secrets:
       - database_url
       - brevo_smtp_password
@@ -270,6 +273,8 @@ services:
       db:
         condition: service_healthy
       migrate:
+        condition: service_completed_successfully
+      media-init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "scripts/worker-healthcheck.mjs"]

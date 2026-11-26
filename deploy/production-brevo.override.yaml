@@ -1,0 +1,26 @@
+services:
+  web:
+    environment:
+      EMAIL_DELIVERY_MODE: brevo
+      EMAIL_RECIPIENT_POLICY: production
+      EXTERNAL_EMAIL_ENABLED: "true"
+      CONTROLLED_ACCEPTANCE_ONLY: "false"
+      EXTERNAL_EMAIL_ALLOWLIST: ""
+      BREVO_SMTP_HOST: smtp-relay.brevo.com
+      BREVO_SMTP_PORT: "587"
+      BREVO_SMTP_USER: "${BREVO_SMTP_USER:?BREVO_SMTP_USER is required}"
+      BREVO_SENDER: HAU SOC Badging System <badges@hausoc.org>
+      BREVO_WEBHOOK_ENABLED: "true"
+
+  worker:
+    environment:
+      EMAIL_DELIVERY_MODE: brevo
+      EMAIL_RECIPIENT_POLICY: production
+      EXTERNAL_EMAIL_ENABLED: "true"
+      CONTROLLED_ACCEPTANCE_ONLY: "false"
+      EXTERNAL_EMAIL_ALLOWLIST: ""
+      BREVO_SMTP_HOST: smtp-relay.brevo.com
+      BREVO_SMTP_PORT: "587"
+      BREVO_SMTP_USER: "${BREVO_SMTP_USER:?BREVO_SMTP_USER is required}"
+      BREVO_SENDER: HAU SOC Badging System <badges@hausoc.org>
+      BREVO_WEBHOOK_ENABLED: "true"

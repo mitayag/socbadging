@@ -59,6 +59,27 @@ describe("PublicCredentialPage boundaries", () => {
     ]);
   });
 
+  it("suppresses social preview metadata when sharing is disabled", async () => {
+    state.getPublicCredential.mockResolvedValueOnce({
+      publicId,
+      status: "ACTIVE",
+      sharingEnabled: false,
+      achievement: {
+        name: "Secure Systems",
+        image: { id: "https://badges.example.test/badge.png" },
+      },
+      issuer: { name: "HAU SOC" },
+      credential: {
+        id: "https://badges.example.test/credentials/abcdefghijklmnopqrstuvwxyzABCDEF",
+      },
+      recipientDisplayName: "Maria D.",
+    } as unknown as PublicCredential);
+    const metadata = await generateMetadata(pageParams({ publicId }));
+    expect(metadata.robots).toEqual({ index: false, follow: false });
+    expect(metadata.openGraph).toBeUndefined();
+    expect(metadata.twitter).toBeUndefined();
+  });
+
   it.each([
     ["malformed", "not-a-public-id"],
     ["missing", publicId],

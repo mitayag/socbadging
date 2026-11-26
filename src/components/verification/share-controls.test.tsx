@@ -47,6 +47,45 @@ describe("ShareControls", () => {
     expect(document.body.textContent).not.toContain("Maria");
   });
 
+  it("adds an active credential to a LinkedIn profile with public certification details", () => {
+    render(
+      <ShareControls
+        {...props}
+        credentialName="Secure Systems"
+        credentialPublicId="abc_DEF-123"
+        credentialStatus="ACTIVE"
+        issuedAt="2026-08-23T00:00:00.000Z"
+        issuerName="HAU SOC"
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Add certification to LinkedIn profile" });
+    const url = new URL(link.getAttribute("href") ?? "");
+    expect(url.origin + url.pathname).toBe("https://www.linkedin.com/profile/add");
+    expect(url.searchParams.get("startTask")).toBe("CERTIFICATION_NAME");
+    expect(url.searchParams.get("name")).toBe("Secure Systems");
+    expect(url.searchParams.get("organizationName")).toBe("HAU SOC");
+    expect(url.searchParams.get("issueYear")).toBe("2026");
+    expect(url.searchParams.get("issueMonth")).toBe("8");
+    expect(url.searchParams.get("certUrl")).toBe(props.canonicalUrl);
+    expect(url.searchParams.get("certId")).toBe("abc_DEF-123");
+    expect(document.body.textContent).not.toContain("Maria");
+  });
+
+  it("does not offer LinkedIn certification add for revoked credentials", () => {
+    render(
+      <ShareControls
+        {...props}
+        credentialName="Secure Systems"
+        credentialStatus="REVOKED"
+        issuedAt="2026-08-23T00:00:00.000Z"
+        issuerName="HAU SOC"
+      />,
+    );
+    expect(
+      screen.queryByRole("link", { name: "Add certification to LinkedIn profile" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders a downloadable QR code for public verification", () => {
     render(<ShareControls {...props} qrSrc="/api/credentials/abc_DEF-123/qr" />);
     expect(

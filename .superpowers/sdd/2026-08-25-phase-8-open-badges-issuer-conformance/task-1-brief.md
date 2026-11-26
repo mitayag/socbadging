@@ -1,6 +1,6 @@
 # Task 1: Pin Standards Libraries and Prove the Cryptographic Primitive
 
-Source plan: `/Users/marlontayag/Desktop/SOC Badging System/docs/superpowers/plans/2026-08-25-phase-8-open-badges-issuer-conformance.md`
+Source plan: `<repository-root>/docs/superpowers/plans/2026-08-25-phase-8-open-badges-issuer-conformance.md`
 
 ## Files
 
@@ -32,7 +32,7 @@ Source plan: `/Users/marlontayag/Desktop/SOC Badging System/docs/superpowers/pla
 - Private keys must never be stored or logged.
 - Never expose recipient email/raw identity and never claim certification.
 - Preserve strict TDD evidence and existing code conventions.
-- Read `/Users/marlontayag/Desktop/SOC Badging System/AGENTS.md` and `/Users/marlontayag/Desktop/SOC Badging System/REQUIREMENTS.md` completely before editing.
+- Read `<repository-root>/AGENTS.md` and `<repository-root>/REQUIREMENTS.md` completely before editing.
 - Do not dispatch subagents and do not initialize Git or commit.
 
 ## Controller rulings

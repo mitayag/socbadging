@@ -111,6 +111,9 @@ describe("PublicCredentialCard", () => {
         /issued through the HAU SOC Badging System.*issuer, recipient, issue date, and current status/i,
       ),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Add certification to LinkedIn profile" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/unsigned/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/not certified/i)).not.toBeInTheDocument();
     expect(document.body.textContent).not.toContain("maria@example.edu");

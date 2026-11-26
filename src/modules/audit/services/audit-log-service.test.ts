@@ -68,6 +68,7 @@ describe("listAuditLogs", () => {
 
   it("includes Administrator notification retry requests", () => {
     expect(sensitiveAuditActions).toContain("notification.retry_requested");
+    expect(sensitiveAuditActions).toContain("administrator.password_reset");
     expect(auditLogPageSizes).toEqual([5, 10, 25, 50]);
   });
 

@@ -1,8 +1,16 @@
 import type { NotificationDelivery, PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 
+import {
+  AchievementSnapshotSchema,
+  RecipientSnapshotSchema,
+} from "@/modules/issuance/services/snapshot-schemas";
+import { readStoredFile } from "@/platform/storage/local-storage";
+
 import { renderIssuedEmail } from "../templates/issued-email";
 import { renderRevokedEmail } from "../templates/revoked-email";
+import { safePublicUrl } from "../templates/template-utils";
+import type { EmailInlineAttachment } from "../templates/template-utils";
 import {
   markControlledAccepted,
   markControlledFailure,
@@ -66,9 +74,93 @@ export async function claimDueDeliveries(
   return claimed;
 }
 
-function renderDeliveryEmail(delivery: NotificationDelivery) {
+const badgeImageCid = "badge-artwork@socbadging.hausoc.org";
+const badgeImageContentTypes = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+} as const;
+type BadgeImageExtension = keyof typeof badgeImageContentTypes;
+
+function badgeImageStorageKey(
+  imageValue: string | null,
+  verificationValue: string,
+): { key: string; extension: BadgeImageExtension } | null {
+  const safeImageValue = safePublicUrl(imageValue ?? undefined);
+  if (!safeImageValue) return null;
+  try {
+    const imageUrl = new URL(safeImageValue);
+    const verificationUrl = new URL(verificationValue);
+    if (
+      imageUrl.origin !== verificationUrl.origin ||
+      imageUrl.username ||
+      imageUrl.password ||
+      imageUrl.search ||
+      imageUrl.hash
+    ) {
+      return null;
+    }
+    const prefix = "/api/media/";
+    if (!imageUrl.pathname.startsWith(prefix)) return null;
+    const segments = imageUrl.pathname.slice(prefix.length).split("/");
+    const encodedFilename = segments[1];
+    if (segments.length !== 2 || segments[0] !== "badges" || !encodedFilename) return null;
+    const filename = decodeURIComponent(encodedFilename);
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp)$/i.test(filename)) return null;
+    const extension = filename.split(".").pop()?.toLowerCase() as BadgeImageExtension;
+    return { key: `badges/${filename}`, extension };
+  } catch {
+    return null;
+  }
+}
+
+async function loadInlineBadgeImage(
+  imageValue: string | null,
+  verificationValue: string,
+): Promise<EmailInlineAttachment | null> {
+  const source = badgeImageStorageKey(imageValue, verificationValue);
+  if (!source) return null;
+  try {
+    const content = await readStoredFile(source.key);
+    if (!content.byteLength || content.byteLength > 2 * 1024 * 1024) return null;
+    return {
+      filename: `badge-artwork.${source.extension === "jpeg" ? "jpg" : source.extension}`,
+      content,
+      contentType: badgeImageContentTypes[source.extension],
+      cid: badgeImageCid,
+      contentDisposition: "inline",
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function renderDeliveryEmail(prisma: PrismaClient, delivery: NotificationDelivery) {
+  let recipientDisplayName: string | undefined;
+  let achievementDescription: string | undefined;
+  try {
+    const issuance = await prisma.badgeIssuance.findUnique({
+      where: { id: delivery.issuanceId },
+      select: { recipientSnapshotJson: true, achievementSnapshotJson: true },
+    });
+    if (issuance) {
+      const recipient = RecipientSnapshotSchema.safeParse(issuance.recipientSnapshotJson);
+      const achievement = AchievementSnapshotSchema.safeParse(issuance.achievementSnapshotJson);
+      if (recipient.success) recipientDisplayName = recipient.data.displayName;
+      if (achievement.success) achievementDescription = achievement.data.description;
+    }
+  } catch {
+    // Historical/malformed snapshots fall back to the stored delivery fields.
+  }
+  const inlineBadgeImage =
+    delivery.type === "BADGE_ISSUED"
+      ? await loadInlineBadgeImage(delivery.badgeImageUrl, delivery.verificationUrl)
+      : null;
   const templateInput = {
     recipientFirstName: delivery.recipientFirstName,
+    ...(recipientDisplayName ? { recipientDisplayName } : {}),
+    ...(achievementDescription ? { achievementDescription } : {}),
     badgeName: delivery.badgeName,
     ...(delivery.badgeImageUrl ? { badgeImageUrl: delivery.badgeImageUrl } : {}),
     issuerName: delivery.issuerName,
@@ -77,9 +169,11 @@ function renderDeliveryEmail(delivery: NotificationDelivery) {
     ...(delivery.expiresAt ? { expiresAt: delivery.expiresAt } : {}),
     ...(delivery.supportContact ? { supportContact: delivery.supportContact } : {}),
   };
-  return delivery.type === "BADGE_ISSUED"
-    ? renderIssuedEmail(templateInput)
-    : renderRevokedEmail(templateInput);
+  const email =
+    delivery.type === "BADGE_ISSUED"
+      ? renderIssuedEmail(templateInput, inlineBadgeImage?.cid)
+      : renderRevokedEmail(templateInput);
+  return inlineBadgeImage ? { ...email, attachments: [inlineBadgeImage] } : email;
 }
 
 async function failClaimed(
@@ -188,7 +282,7 @@ export async function deliverClaimed(
     return failClaimed(prisma, delivery, "CONTROLLED_ACCEPTANCE_REQUIRED");
   }
 
-  const email = renderDeliveryEmail(delivery);
+  const email = await renderDeliveryEmail(prisma, delivery);
 
   if (controlledAttempt) {
     if (await isRecipientSuppressed(prisma, delivery.recipientEmail)) {

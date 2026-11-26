@@ -4,19 +4,19 @@ All Task 3 implementation files are new except `src/config/env.ts`, `src/config/
 
 Review directly:
 
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/signing/key-generator.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/signing/key-generator.test.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/scripts/generate-signing-key.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/signer/runtime.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/signer/runtime.test.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/signer/server.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/signer/server.test.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/signer.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/signing/signer-client.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/signing/signer-client.test.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/config/env.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/config/env.test.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/proof.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/types/ed25519-multikey.d.ts`
+- `<repository-root>/src/modules/signing/key-generator.ts`
+- `<repository-root>/src/modules/signing/key-generator.test.ts`
+- `<repository-root>/scripts/generate-signing-key.ts`
+- `<repository-root>/src/signer/runtime.ts`
+- `<repository-root>/src/signer/runtime.test.ts`
+- `<repository-root>/src/signer/server.ts`
+- `<repository-root>/src/signer/server.test.ts`
+- `<repository-root>/src/signer.ts`
+- `<repository-root>/src/modules/signing/signer-client.ts`
+- `<repository-root>/src/modules/signing/signer-client.test.ts`
+- `<repository-root>/src/config/env.ts`
+- `<repository-root>/src/config/env.test.ts`
+- `<repository-root>/src/modules/open-badges/proof.ts`
+- `<repository-root>/src/types/ed25519-multikey.d.ts`
 
-Implementer evidence: `/Users/marlontayag/Desktop/SOC Badging System/.superpowers/sdd/2026-08-25-phase-8-open-badges-issuer-conformance/task-3-report.md`.
+Implementer evidence: `<repository-root>/.superpowers/sdd/2026-08-25-phase-8-open-badges-issuer-conformance/task-3-report.md`.

@@ -193,6 +193,11 @@ export function PublicCredentialCard({ credential }: { credential: PublicCredent
         canonicalUrl={canonicalUrl}
         qrSrc={`/api/credentials/${encodeURIComponent(credential.publicId)}/qr`}
         sharingEnabled={credential.sharingEnabled}
+        credentialName={credential.achievement.name}
+        credentialPublicId={credential.publicId}
+        credentialStatus={credential.status}
+        issuedAt={credential.issuedAt}
+        issuerName={credential.issuer.name}
         text={text}
         title={title}
       />

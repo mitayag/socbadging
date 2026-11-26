@@ -10,21 +10,21 @@ Git base/head: unavailable because the project has no `.git` directory.
 
 ## Current files to review in full
 
-- `/Users/marlontayag/Desktop/SOC Badging System/package.json` (`674b0bf3bbb6c0eaa0683c3da783b32382c171ab3f019639c789ced91aa381cb`)
-- `/Users/marlontayag/Desktop/SOC Badging System/package-lock.json` (`2403eb567de95daa316e913ba292c3cc6450e036cfd35d8854f481d9c6f379ba`)
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/document-loader.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/document-loader.test.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/proof.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/proof.test.ts`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/contexts/bitstring-status-list-v1.json`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/contexts/data-integrity-v2.json`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/contexts/multikey-v1.json`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/contexts/open-badges-3.0.3.json`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/contexts/open-badges-extensions.json`
-- `/Users/marlontayag/Desktop/SOC Badging System/src/modules/open-badges/contexts/vc-v2.json`
+- `<repository-root>/package.json` (`674b0bf3bbb6c0eaa0683c3da783b32382c171ab3f019639c789ced91aa381cb`)
+- `<repository-root>/package-lock.json` (`2403eb567de95daa316e913ba292c3cc6450e036cfd35d8854f481d9c6f379ba`)
+- `<repository-root>/src/modules/open-badges/document-loader.ts`
+- `<repository-root>/src/modules/open-badges/document-loader.test.ts`
+- `<repository-root>/src/modules/open-badges/proof.ts`
+- `<repository-root>/src/modules/open-badges/proof.test.ts`
+- `<repository-root>/src/modules/open-badges/contexts/bitstring-status-list-v1.json`
+- `<repository-root>/src/modules/open-badges/contexts/data-integrity-v2.json`
+- `<repository-root>/src/modules/open-badges/contexts/multikey-v1.json`
+- `<repository-root>/src/modules/open-badges/contexts/open-badges-3.0.3.json`
+- `<repository-root>/src/modules/open-badges/contexts/open-badges-extensions.json`
+- `<repository-root>/src/modules/open-badges/contexts/vc-v2.json`
 
 Because a unified Git diff cannot be produced, read these Task 1 files directly. For `package.json`, inspect the five dependency additions. For `package-lock.json`, inspect resolution/version/integrity entries only as needed to validate exact pins and unexpected lifecycle changes.
 
 ## Implementer evidence
 
-Read `/Users/marlontayag/Desktop/SOC Badging System/.superpowers/sdd/2026-08-25-phase-8-open-badges-issuer-conformance/task-1-report.md`.
+Read `<repository-root>/.superpowers/sdd/2026-08-25-phase-8-open-badges-issuer-conformance/task-1-report.md`.

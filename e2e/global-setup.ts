@@ -1162,6 +1162,8 @@ export default async function globalSetup() {
     E2E_SIGNED_REPLACEMENT_PUBLIC_ID: signedReplacementPublicId,
     E2E_INVALID_SNAPSHOT_PUBLIC_ID: invalidSnapshotPublicId,
     E2E_SIGNED_DESKTOP_ISSUANCE_ID: ids.signedDesktop,
+    E2E_SIGNED_ORIGINAL_ISSUANCE_ID: ids.signedOriginal,
+    E2E_SIGNED_REPLACEMENT_ISSUANCE_ID: ids.signedReplacement,
     E2E_SIGNED_MOBILE_ISSUANCE_ID: ids.signedMobile,
     E2E_SIGNER_CONTROL_TOKEN: signerFixture.signerControlToken,
     E2E_SIGNING_KEY_ID: ids.signingKey,

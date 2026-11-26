@@ -33,7 +33,7 @@ EXTERNAL_EMAIL_ENABLED=true
 EXTERNAL_EMAIL_ALLOWLIST=authorized-test-recipient@example.org
 BREVO_SMTP_HOST=smtp-relay.brevo.com
 BREVO_SMTP_PORT=587
-BREVO_SMTP_USER=<private-brevo-smtp-username>
+BREVO_SMTP_USER=<redacted-brevo-smtp-username>
 BREVO_SMTP_PASSWORD=<private-brevo-smtp-password>
 BREVO_SENDER=HAU SOC Badging System <badges@hausoc.org>
 BREVO_WEBHOOK_ENABLED=false
@@ -46,8 +46,9 @@ BREVO_WEBHOOK_SECRET=<private-webhook-secret>
 - Brevo mode fails closed unless the switch is `true`.
 - Brevo mode requires an explicit recipient policy; it fails closed if missing or invalid.
 - `EMAIL_RECIPIENT_POLICY=staging` requires a non-empty exact-recipient allowlist.
-- `EMAIL_RECIPIENT_POLICY=production` allows system-authorized recipients without an allowlist; every
-  delivery is still tied to an immutable issuance/student envelope and durable suppression.
+- `EMAIL_RECIPIENT_POLICY=production` accepts any syntactically valid system-authorized recipient
+  without an allowlist. `EXTERNAL_EMAIL_ALLOWLIST` is ignored in this mode, even when non-empty;
+  every delivery is still tied to an immutable issuance/student envelope and durable suppression.
 - `EMAIL_RECIPIENT_POLICY=local` is Mailpit-only and is rejected with Brevo.
 - Port 587 is required; STARTTLS and certificate verification are enforced.
 - Old queued notifications retain `delivery_channel=mailpit` and are not claimed by the Brevo worker.
@@ -58,6 +59,19 @@ BREVO_WEBHOOK_SECRET=<private-webhook-secret>
 - The controlled notification must have one `smtp_submission_attempts` row with `acceptanceKey=brevo-live-acceptance`.
 - Once reserved, the attempt is permanently consumed; crashes, restarts, lease expiry, and ambiguous outcomes never trigger a second submission.
 - Manual retry and resend refuse controlled notifications.
+
+## Normal production delivery
+
+`deploy/production-brevo.override.yaml` selects `EMAIL_RECIPIENT_POLICY=production` and an empty
+`EXTERNAL_EMAIL_ALLOWLIST` for both `web` and `worker`. Keep Brevo authentication, the verified
+sender, STARTTLS, and webhook handling configured. Removing the recipient allowlist does not disable
+suppression checks, issuance/student envelope validation, authorization, duplicate prevention, rate
+limits, audit records, or retry limits.
+
+Apply the override only during an explicitly authorized production window, using the existing
+Compose override chain, and recreate both `web` and `worker` without dependencies or a rebuild.
+Configuration changes do not requeue failed deliveries. Do not retry or resend existing failed
+notifications without separate explicit authorization and a duplicate-delivery review.
 
 ## Transport selection
 

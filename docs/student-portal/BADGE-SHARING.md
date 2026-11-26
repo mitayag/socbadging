@@ -42,8 +42,20 @@ Students can:
 - Copy the public verification link.
 - Use native sharing when supported by the browser.
 - Share to LinkedIn or Facebook.
+- Add an active credential to their LinkedIn **Licenses & Certifications** profile section.
+- Share on X.
 - Share by email.
 - Download or scan a QR code for the public verification page.
+- Download the badge image.
+
+Each share action directs viewers to the official public verification page. Public credential pages
+publish privacy-safe Open Graph/Twitter preview metadata using only badge, issuer, and public
+recipient display fields.
+
+Students choose whether and where to share; the system never publishes to a social account
+automatically. The Administrator can disable public sharing globally. Per-credential hiding of the
+public verification page is not supported by the current immutable credential architecture; a
+schema/feature change would be required for that control.
 
 The public verification page does not display the student’s email address or private student number. It uses a privacy-safe recipient display name.
 

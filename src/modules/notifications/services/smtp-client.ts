@@ -12,7 +12,14 @@ export type SmtpClientConfig = {
   password?: string;
   from: string;
   replyTo?: string;
+  connectionTimeoutMs?: number;
+  greetingTimeoutMs?: number;
+  socketTimeoutMs?: number;
 };
+
+const defaultConnectionTimeoutMs = 10_000;
+const defaultGreetingTimeoutMs = 10_000;
+const defaultSocketTimeoutMs = 30_000;
 
 export type SmtpTransport = {
   send(input: { to: string; email: RenderedEmail }): Promise<{ messageId?: string }>;
@@ -23,6 +30,9 @@ export function createSmtpTransport(config: SmtpClientConfig): SmtpTransport {
     host: config.host,
     port: config.port,
     secure: config.secure,
+    connectionTimeout: config.connectionTimeoutMs ?? defaultConnectionTimeoutMs,
+    greetingTimeout: config.greetingTimeoutMs ?? defaultGreetingTimeoutMs,
+    socketTimeout: config.socketTimeoutMs ?? defaultSocketTimeoutMs,
     ...(config.requireTLS ? { requireTLS: true } : {}),
     ...(config.tls ? { tls: config.tls } : {}),
     ...(config.username && config.password
@@ -38,6 +48,7 @@ export function createSmtpTransport(config: SmtpClientConfig): SmtpTransport {
         subject: email.subject,
         text: email.text,
         html: email.html,
+        ...(email.attachments?.length ? { attachments: email.attachments } : {}),
       });
       return { messageId: result.messageId };
     },

@@ -52,6 +52,7 @@ export function loadWorkerConfig(environment: Record<string, string | undefined>
       NOTIFICATION_MAX_ATTEMPTS: integerFromEnvironment(1, 20, 5),
       NOTIFICATION_RETRY_BASE_DELAY_SECONDS: integerFromEnvironment(1, 86_400, 60),
       NOTIFICATION_BATCH_SIZE: integerFromEnvironment(1, 100, 20),
+      NOTIFICATION_CYCLE_TIMEOUT_MS: integerFromEnvironment(5_000, 900_000, 60_000),
     })
     .transform((value) => ({
       pollIntervalMs: value.NOTIFICATION_POLL_INTERVAL_MS,
@@ -59,6 +60,7 @@ export function loadWorkerConfig(environment: Record<string, string | undefined>
       maxAttempts: value.NOTIFICATION_MAX_ATTEMPTS,
       retryBaseDelaySeconds: value.NOTIFICATION_RETRY_BASE_DELAY_SECONDS,
       batchSize: value.NOTIFICATION_BATCH_SIZE,
+      cycleTimeoutMs: value.NOTIFICATION_CYCLE_TIMEOUT_MS,
     }))
     .parse(environment);
 }

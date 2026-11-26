@@ -2,10 +2,8 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
 
 import { loadEmailDeliveryConfig, loadWorkerConfig } from "./config/env";
-import { runDeliveryCycle } from "./modules/notifications/services/delivery-worker";
+import { runWorkerLoop } from "./modules/notifications/services/worker-runtime";
 import { createSmtpTransport } from "./modules/notifications/services/smtp-client";
-import { recordWorkerHeartbeat } from "./platform/health/worker-heartbeat";
-import { writeStructuredLog } from "./platform/logging/structured-log";
 
 function createWorkerPrisma(databaseUrl: string): PrismaClient {
   const url = new URL(databaseUrl);
@@ -17,6 +15,11 @@ function createWorkerPrisma(databaseUrl: string): PrismaClient {
       password: decodeURIComponent(url.password),
       database: url.pathname.slice(1),
       connectionLimit: 5,
+      connectTimeout: 10_000,
+      acquireTimeout: 15_000,
+      idleTimeout: 60_000,
+      queryTimeout: 15_000,
+      socketTimeout: 30_000,
     }),
   });
 }
@@ -39,22 +42,13 @@ let stopping = false;
 process.once("SIGTERM", () => (stopping = true));
 process.once("SIGINT", () => (stopping = true));
 
-while (!stopping) {
-  try {
-    const result = await runDeliveryCycle(prisma, smtp, workerConfig);
-    await recordWorkerHeartbeat(prisma, result.mailStatus);
-    writeStructuredLog("notification.worker.cycle", {
-      status: result.mailStatus,
-      processed: result.processed,
-    });
-  } catch (error) {
-    await recordWorkerHeartbeat(prisma, "degraded").catch(() => undefined);
-    writeStructuredLog("notification.worker.error", {
-      status: "degraded",
-      errorCategory: String((error as { code?: unknown }).code ?? "WORKER_ERROR").slice(0, 100),
-    });
-  }
-  await new Promise((resolve) => setTimeout(resolve, workerConfig.pollIntervalMs));
+try {
+  await runWorkerLoop({
+    prisma,
+    smtp,
+    config: workerConfig,
+    isStopping: () => stopping,
+  });
+} finally {
+  await prisma.$disconnect();
 }
-writeStructuredLog("notification.worker.stopped", { status: "stopped" });
-await prisma.$disconnect();

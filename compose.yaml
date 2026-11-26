@@ -144,9 +144,12 @@ services:
       NOTIFICATION_MAX_ATTEMPTS: ${NOTIFICATION_MAX_ATTEMPTS:-5}
       NOTIFICATION_RETRY_BASE_DELAY_SECONDS: ${NOTIFICATION_RETRY_BASE_DELAY_SECONDS:-60}
       NOTIFICATION_BATCH_SIZE: ${NOTIFICATION_BATCH_SIZE:-20}
+    volumes:
+      - media_data:/app/storage:ro
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
+      media-init: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD-SHELL", "kill -0 1"]
       interval: 15s

@@ -1,5 +1,8 @@
 export type NotificationTemplateInput = {
   recipientFirstName: string;
+  recipientDisplayName?: string;
+  achievementDescription?: string;
+  portalUrl?: string;
   badgeName: string;
   badgeImageUrl?: string;
   issuerName: string;
@@ -19,7 +22,20 @@ export function safePublicUrl(value: string | undefined): string | null {
   }
 }
 
-export type RenderedEmail = { subject: string; text: string; html: string };
+export type EmailInlineAttachment = {
+  filename: string;
+  content: Buffer;
+  contentType: "image/jpeg" | "image/png" | "image/webp";
+  cid: string;
+  contentDisposition: "inline";
+};
+
+export type RenderedEmail = {
+  subject: string;
+  text: string;
+  html: string;
+  attachments?: EmailInlineAttachment[];
+};
 
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => {

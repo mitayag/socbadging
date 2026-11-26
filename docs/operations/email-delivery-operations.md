@@ -12,6 +12,24 @@ Keep queue status and provider status separate:
 - Delivery attempts are stored in `notification_delivery_attempts`.
 - Provider events are stored immutably in `notification_delivery_events`.
 
+## Badge-issued email
+
+The official HAU SOC issued-badge email uses the subject
+`Congratulations! You Have Earned a Digital Badge — HAU School of Computing`.
+It includes the HAU/SOC identity, privacy-safe recipient display name, badge title, achievement
+description, issue/expiry dates, public verification link, Student Badge Portal link, optional
+LinkedIn/Facebook/X sharing instructions, badge artwork when available, and the configured support
+contact. It never includes signing material, recipient email, or student number.
+
+For issued-badge email, the worker first tries to attach artwork from the existing badge media store
+as an inline CID image. It never fetches arbitrary artwork URLs: the stored URL must use HTTP(S),
+match the issuance verification origin, and resolve to the validated `/api/media/badges/…` storage
+path. The production worker mounts `media_data` at `/app/storage` read-only. Missing, invalid,
+oversized, cross-origin, or unreadable artwork falls back to the original absolute remote image URL.
+Every artwork variant retains descriptive alt text, an absolute HTML artwork link, and a plain-text
+artwork URL for clients that block images. SMTP acceptance and provider events retain their existing
+meanings; inline attachment support does not prove inbox rendering.
+
 ## Recipient policies
 
 Email delivery requires an explicit recipient policy:
@@ -96,6 +114,19 @@ npx tsx scripts/simulate-brevo-webhook.ts \
 ```
 
 No external email is sent by the simulation.
+
+## Worker resilience
+
+- Each cycle is bounded by `NOTIFICATION_CYCLE_TIMEOUT_MS` (default 60000 ms).
+- SMTP uses connection/greeting/socket timeouts; MariaDB uses connect/acquire/query/socket timeouts.
+- Heartbeat writes are bounded so a database hang cannot re-block the loop.
+- A cycle timeout logs `notification.worker.stall_exit` and exits with code 70 immediately. Because
+  a timed-out promise cannot be cancelled reliably, no replacement cycle is started in the same
+  process; container recovery prevents late work from overlapping a new delivery cycle.
+- Polling is interruptible for graceful SIGTERM/SIGINT.
+- Tune the cycle timeout above expected batch duration for slow providers; do not use it to hide
+  repeated failures.
+- Docker worker health diagnostics print heartbeat age and mail status on failure.
 
 ## Monitoring
 

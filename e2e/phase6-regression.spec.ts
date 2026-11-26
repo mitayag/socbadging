@@ -107,12 +107,11 @@ test.describe.serial("Phase 6 verification lifecycle", () => {
   }) => {
     test.setTimeout(120_000);
     const windowMs = 60_000;
-    const elapsedInWindow = Date.now() % windowMs;
-    if (elapsedInWindow > 40_000) {
-      // The limiter uses fixed 60-second windows. Start with enough runway so all
-      // requests in this test land in one window; production limits are unchanged.
-      await new Promise((resolve) => setTimeout(resolve, windowMs - elapsedInWindow + 1_000));
-    }
+    // The limiter uses fixed 60-second windows and this test sends 61 sequential
+    // HTML requests. Always start at a fresh window so a slow render can never
+    // cross the boundary and reset the bucket mid-assertion.
+    const waitMs = windowMs - (Date.now() % windowMs) + 1_000;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
 
     const path = `/credentials/${fixture.E2E_RATE_PUBLIC_ID}`;
     const response = await request.get(path);

@@ -8,7 +8,7 @@ None.
 
 ### Important
 
-None. Prior P2 resolved: named tests now prove unauthenticated export rejects before a database query and Administrator export has no Faculty-owner predicate ([issuance-query-service.test.ts:373](/Users/marlontayag/Desktop/SOC%20Badging%20System/src/modules/issuance/services/issuance-query-service.test.ts:373), [issuance-query-service.test.ts:379](/Users/marlontayag/Desktop/SOC%20Badging%20System/src/modules/issuance/services/issuance-query-service.test.ts:379)).
+None. Prior P2 resolved: named tests now prove unauthenticated export rejects before a database query and Administrator export has no Faculty-owner predicate ([issuance-query-service.test.ts:373](<local-home>/Desktop/SOC%20Badging%20System/src/modules/issuance/services/issuance-query-service.test.ts:373), [issuance-query-service.test.ts:379](<local-home>/Desktop/SOC%20Badging%20System/src/modules/issuance/services/issuance-query-service.test.ts:379)).
 
 ### Minor
 

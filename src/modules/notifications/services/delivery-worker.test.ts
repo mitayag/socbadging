@@ -1,7 +1,16 @@
 import type { NotificationDelivery, PrismaClient } from "@prisma/client";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const storage = vi.hoisted(() => ({ readStoredFile: vi.fn() }));
+vi.mock("@/platform/storage/local-storage", () => ({
+  readStoredFile: storage.readStoredFile,
+}));
 
 import { claimDueDeliveries, deliverClaimed, runDeliveryCycle } from "./delivery-worker";
+
+beforeEach(() => {
+  storage.readStoredFile.mockReset();
+});
 
 const delivery: NotificationDelivery = {
   id: "delivery-1",
@@ -54,6 +63,23 @@ const noSuppression = () => ({
   recipientSuppression: { findUnique: vi.fn().mockResolvedValue(null) },
 });
 
+async function sendBadgeEmail(badgeImageUrl: string) {
+  const smtp = { send: vi.fn().mockResolvedValue({ messageId: "provider-1" }) };
+  await deliverClaimed(
+    {
+      notificationDelivery: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      notificationDeliveryAttempt: attemptHistory(),
+      badgeIssuance: { findUnique: vi.fn().mockResolvedValue(null) },
+      ...noSuppression(),
+    } as unknown as PrismaClient,
+    smtp,
+    { ...delivery, badgeImageUrl },
+    config,
+    new Date("2026-08-23T00:01:00Z"),
+  );
+  return smtp;
+}
+
 describe("delivery worker", () => {
   it("claims only the configured delivery channel", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
@@ -64,6 +90,27 @@ describe("delivery worker", () => {
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ deliveryChannel: "mailpit" }) }),
     );
+  });
+
+  it("claims due or expired leases without taking an active processing claim", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const now = new Date("2026-08-23T00:01:00Z");
+    await claimDueDeliveries(
+      { notificationDelivery: { findMany } } as unknown as PrismaClient,
+      config,
+      now,
+    );
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        deliveryChannel: "mailpit",
+        OR: [
+          { status: { in: ["PENDING", "RETRY_SCHEDULED"] }, nextAttemptAt: { lte: now } },
+          { status: "PROCESSING", claimExpiresAt: { lte: now } },
+        ],
+      },
+      orderBy: { nextAttemptAt: "asc" },
+      take: config.batchSize,
+    });
   });
 
   it("refuses a non-allowlisted Brevo recipient without calling SMTP", async () => {
@@ -150,7 +197,7 @@ describe("delivery worker", () => {
     );
   });
 
-  it("allows a matching production recipient with no allowlist", async () => {
+  it("allows a matching production recipient when the allowlist names another address", async () => {
     const updateMany = vi.fn().mockResolvedValue({ count: 1 });
     const smtp = { send: vi.fn().mockResolvedValue({ messageId: "provider-1" }) };
     await deliverClaimed(
@@ -180,7 +227,7 @@ describe("delivery worker", () => {
         deliveryChannel: "brevo",
         recipientPolicy: "production",
         externalEnabled: true,
-        allowlist: [],
+        allowlist: ["only-allowlisted@example.test"],
       },
       new Date("2026-08-23T00:01:00Z"),
     );
@@ -188,6 +235,50 @@ describe("delivery worker", () => {
     expect(updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "SENT" }) }),
     );
+  });
+
+  it("attaches trusted local badge artwork and references it with a matching CID", async () => {
+    const artwork = Buffer.from("jpeg-data");
+    storage.readStoredFile.mockResolvedValue(artwork);
+    const badgeImageUrl = "https://badges.example.edu/api/media/badges/test.jpg";
+    const smtp = await sendBadgeEmail(badgeImageUrl);
+
+    expect(storage.readStoredFile).toHaveBeenCalledWith("badges/test.jpg");
+    const message = smtp.send.mock.calls[0]?.[0];
+    expect(message.email.html).toContain('src="cid:badge-artwork@socbadging.hausoc.org"');
+    expect(message.email.html).toContain(`href="${badgeImageUrl}"`);
+    expect(message.email.text).toContain(`Badge image: ${badgeImageUrl}`);
+    expect(message.email.attachments).toEqual([
+      {
+        filename: "badge-artwork.jpg",
+        content: artwork,
+        contentType: "image/jpeg",
+        cid: "badge-artwork@socbadging.hausoc.org",
+        contentDisposition: "inline",
+      },
+    ]);
+  });
+
+  it("keeps the remote artwork URL when local attachment loading fails", async () => {
+    storage.readStoredFile.mockRejectedValue(new Error("missing"));
+    const badgeImageUrl = "https://badges.example.edu/api/media/badges/test.jpg";
+    const smtp = await sendBadgeEmail(badgeImageUrl);
+
+    const message = smtp.send.mock.calls[0]?.[0];
+    expect(message.email.html).toContain(`src="${badgeImageUrl}"`);
+    expect(message.email.attachments).toBeUndefined();
+  });
+
+  it("does not read local storage for a cross-origin or unsafe media path", async () => {
+    for (const badgeImageUrl of [
+      "https://other.example.edu/api/media/badges/test.jpg",
+      "https://badges.example.edu/api/media/badges/%2e%2e%2fsecret.jpg",
+    ]) {
+      const smtp = await sendBadgeEmail(badgeImageUrl);
+      const message = smtp.send.mock.calls[0]?.[0];
+      expect(message.email.attachments).toBeUndefined();
+    }
+    expect(storage.readStoredFile).not.toHaveBeenCalled();
   });
 
   it("stops a claimed send when the recipient is durably suppressed", async () => {

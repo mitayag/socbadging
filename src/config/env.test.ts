@@ -19,7 +19,14 @@ describe("notification environment", () => {
       maxAttempts: 5,
       retryBaseDelaySeconds: 60,
       batchSize: 20,
+      cycleTimeoutMs: 60000,
     });
+  });
+
+  it("bounds the worker cycle timeout", () => {
+    expect(loadWorkerConfig({ NOTIFICATION_CYCLE_TIMEOUT_MS: "30000" }).cycleTimeoutMs).toBe(30000);
+    expect(() => loadWorkerConfig({ NOTIFICATION_CYCLE_TIMEOUT_MS: "1000" })).toThrow();
+    expect(() => loadWorkerConfig({ NOTIFICATION_CYCLE_TIMEOUT_MS: "900001" })).toThrow();
   });
 
   it("rejects partial SMTP credentials", () => {
@@ -164,10 +171,36 @@ describe("notification environment", () => {
     expect(config.allowlist).toEqual([]);
     expect(isExternalRecipientAllowed(config, "student@hau.edu.ph")).toBe(true);
     expect(isExternalRecipientAllowed(config, "faculty@hau.edu.ph")).toBe(true);
+    expect(isExternalRecipientAllowed(config, "learner@gmail.com")).toBe(true);
+    expect(isExternalRecipientAllowed(config, "alumni@example.org")).toBe(true);
     expect(isExternalRecipientAllowed(config, "not-an-email")).toBe(false);
     expect(isExternalRecipientAllowed(config, "student@hau.edu.ph\r\nBcc: evil@example.test")).toBe(
       false,
     );
+  });
+
+  it("ignores a configured allowlist in production while staging remains restricted", () => {
+    const environment = {
+      EMAIL_DELIVERY_MODE: "brevo",
+      EXTERNAL_EMAIL_ENABLED: "true",
+      EXTERNAL_EMAIL_ALLOWLIST: "allowed@example.test",
+      BREVO_SMTP_USER: "brevo-user",
+      BREVO_SMTP_PASSWORD: "brevo-password",
+    };
+    const production = loadEmailDeliveryConfig({
+      ...environment,
+      EMAIL_RECIPIENT_POLICY: "production",
+    });
+    const staging = loadEmailDeliveryConfig({
+      ...environment,
+      EMAIL_RECIPIENT_POLICY: "staging",
+    });
+
+    expect(isExternalRecipientAllowed(production, "anyone@example.org")).toBe(true);
+    expect(isExternalRecipientAllowed(production, "allowed@example.test")).toBe(true);
+    expect(isExternalRecipientAllowed(production, "not-an-email")).toBe(false);
+    expect(isExternalRecipientAllowed(staging, "anyone@example.org")).toBe(false);
+    expect(isExternalRecipientAllowed(staging, "allowed@example.test")).toBe(true);
   });
 
   it("keeps the Brevo webhook disabled by default and requires a secret when enabled", () => {

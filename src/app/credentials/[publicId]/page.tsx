@@ -24,6 +24,14 @@ export async function generateMetadata({
         : credential.status === "EXPIRED"
           ? `Expired credential issued by ${credential.issuer.name}.`
           : `Verify this credential issued by ${credential.issuer.name}.`;
+    if (credential.sharingEnabled === false) {
+      return {
+        title,
+        description,
+        alternates: { canonical: credential.credential.id },
+        robots: { index: false, follow: false },
+      };
+    }
     return {
       title,
       description,
@@ -31,6 +39,7 @@ export async function generateMetadata({
       openGraph: {
         title,
         description,
+        siteName: credential.issuer.name,
         type: "website",
         url: credential.credential.id,
         images: [

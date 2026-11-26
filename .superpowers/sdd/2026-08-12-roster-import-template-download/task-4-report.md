@@ -87,7 +87,7 @@ After both downloads, the URL remained exactly on the Students page. Browser con
 
 - Desktop screenshot: `/private/tmp/roster-template-desktop.png`
 - Mobile screenshot: `/private/tmp/roster-template-mobile.png`
-- Browser downloads: `/Users/marlontayag/Downloads/roster-import-template.csv` and `/Users/marlontayag/Downloads/roster-import-template.xlsx`
+- Browser downloads: `<local-home>/Downloads/roster-import-template.csv` and `<local-home>/Downloads/roster-import-template.xlsx`
 
 These are outside committed source. The downloaded artifacts are local verification outputs and may be removed manually when no longer needed.
 

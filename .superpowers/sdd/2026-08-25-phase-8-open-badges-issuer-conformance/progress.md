@@ -1,8 +1,8 @@
-# SDD ledger — plan: /Users/marlontayag/Desktop/SOC Badging System/docs/superpowers/plans/2026-08-25-phase-8-open-badges-issuer-conformance.md
+# SDD ledger — plan: <repository-root>/docs/superpowers/plans/2026-08-25-phase-8-open-badges-issuer-conformance.md
 
 ## Execution environment
 
-- Spec: `/Users/marlontayag/Desktop/SOC Badging System/docs/superpowers/specs/2026-08-25-phase-8-open-badges-issuer-conformance-design.md`
+- Spec: `<repository-root>/docs/superpowers/specs/2026-08-25-phase-8-open-badges-issuer-conformance-design.md`
 - Workspace: shared project directory because this project has no `.git` directory.
 - Review evidence: per-task baseline manifests and unified file snapshots replace commit ranges.
 - Ruling: Preserve plan commit checkpoints as review gates without running commits — Git metadata is absent — cost if wrong: file-level review packages are less convenient than commit-range diffs but still preserve inspectable evidence.

@@ -1,0 +1,6 @@
+services:
+  web:
+    image: hau-soc-badging-web:stage6b-6d2f403-a8c209e18d5f
+
+  worker:
+    image: hau-soc-badging-worker:stage6b-6d2f403-a8c209e18d5f

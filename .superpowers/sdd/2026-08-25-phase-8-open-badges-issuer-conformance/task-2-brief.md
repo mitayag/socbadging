@@ -1,6 +1,6 @@
 # Task 2: Add Signing, Status, and Replacement Persistence
 
-Source plan: `/Users/marlontayag/Desktop/SOC Badging System/docs/superpowers/plans/2026-08-25-phase-8-open-badges-issuer-conformance.md`
+Source plan: `<repository-root>/docs/superpowers/plans/2026-08-25-phase-8-open-badges-issuer-conformance.md`
 
 ## Files
 
