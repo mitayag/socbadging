@@ -1,14 +1,14 @@
 # Student Import Production Deployment Report
 
 **Date:** 27 November 2026
-**Time:** 14:05 +0800 / 06:05 UTC
+**Time:** 15:02 +0800 / 07:02 UTC
 **Classification:** PRODUCTION DEPLOYMENT BLOCKED
 **Production URL:** https://socbadging.hausoc.org
 **Production application directory:** `/opt/socbadging` (not reachable for inspection)
 
 ## 1. Executive Summary
 
-The approved GitHub update was completed successfully. Production deployment could not proceed because administrative SSH access to the production host is unavailable from the current operator environment.
+The approved GitHub update was completed successfully. Production deployment could not proceed because the production host only exposes a restricted status-only SSH account from the current operator environment. Tailscale connectivity is now working, but no approved administrative deployment account is available.
 
 The production web endpoint is publicly healthy, but the required preflight host inspection, backup creation, and deployment operations could not be performed. No production files, containers, database records, volumes, secrets, signing keys, environment configuration, or notification state were modified.
 
@@ -52,8 +52,8 @@ Historical operations reports identify the production host/project as `badging-s
 ## 6. Deployment Date and Time
 
 - Date: 27 November 2026
-- Local time: 14:05 +0800
-- UTC time: 06:05 UTC
+- Local time: 15:02 +0800
+- UTC time: 07:02 UTC
 - Deployment outcome: blocked before any production change
 
 ## 7. Preflight Assessment
@@ -78,13 +78,14 @@ The publicly visible health state indicates that the previously reported notific
 
 ### SSH access assessment
 
-| Target                                                  | Result                                       |
-| ------------------------------------------------------- | -------------------------------------------- |
-| Configured alias `badging-server` (`100.126.199.26:22`) | Connection timed out                         |
-| Public host (`122.3.149.244:22`)                        | Network unreachable                          |
-| LAN host `192.168.3.234:22`                             | Connection refused                           |
-| Tailscale client on operator machine                    | Not installed/running                        |
-| Configured SSH user                                     | `socbadging-test`, documented as status-only |
+| Target                                                  | Result                                              |
+| ------------------------------------------------------- | --------------------------------------------------- |
+| Configured alias `badging-server` (`100.126.199.26:22`) | Connected — restricted status-only wrapper          |
+| Public host (`122.3.149.244:22`)                        | Network unreachable                                 |
+| LAN host `192.168.3.234:22`                             | Connection refused                                  |
+| Tailscale client on operator machine                    | Active (`100.126.51.252`)                           |
+| Configured SSH user                                     | `socbadging-test`, restricted status-only           |
+| `root` and unapproved admin users                       | Permission denied — available key is not authorized |
 
 The configured account is not documented as an approved administrative deployment account. No attempt was made to bypass access controls or use unauthorized credentials.
 
@@ -197,8 +198,9 @@ None. No production deployment operation was executed.
 ## 17. Known Limitations and Advisories
 
 - Production administrative access must be restored before deployment can proceed.
-- The current SSH alias uses an unreachable Tailscale address from this operator environment.
-- The configured `socbadging-test` account is documented as status-only, not an administrative deployment account.
+- Tailscale connectivity is now available from the operator environment.
+- The configured `socbadging-test` account is restricted to a status-only wrapper.
+- No approved administrative SSH account/key is available for deployment.
 - Production backups were not created because host access was unavailable.
 - Production host, Compose project, current commit, and image rollback identifiers remain unverified.
 - Public health is currently healthy, including a fresh worker heartbeat, but internal queue health is unverified.
@@ -215,12 +217,12 @@ No database restore was attempted. No application image was replaced. No contain
 
 **PRODUCTION DEPLOYMENT BLOCKED**
 
-Reason: production administrative SSH access is unavailable, and the required verified backup could not be created. The approved procedure mandates a NO-GO when backup verification is impossible.
+Reason: Tailscale is reachable, but only the restricted status-only SSH account is available. No approved administrative deployment account/key was available, and the required verified backup could not be created. The approved procedure mandates a NO-GO when backup verification is impossible.
 
 Required next steps:
 
-1. Restore Tailscale or approved administrative SSH connectivity to the production host.
-2. Use an approved administrative account, not the status-only test account.
+1. Provide the approved administrative SSH account/key for the production host.
+2. Confirm administrative shell and Docker Compose access, not the status-only test wrapper.
 3. Verify `/opt/socbadging`, the actual production Compose project, current commit, images, resources, and proxy state.
 4. Create and verify fresh database/media and signing-key backups.
 5. Re-run preflight and proceed with the web-only deployment plan.
