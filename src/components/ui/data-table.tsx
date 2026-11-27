@@ -10,6 +10,7 @@ export type DataTableColumn<T> = {
 };
 
 export function DataTable<T>({
+  id,
   label,
   caption,
   columns,
@@ -23,6 +24,7 @@ export function DataTable<T>({
   recordLabel = "record",
   tableClassName = "",
 }: {
+  id?: string;
   label: string;
   caption?: string;
   columns: Array<DataTableColumn<T>>;
@@ -37,7 +39,7 @@ export function DataTable<T>({
   tableClassName?: string;
 }) {
   return (
-    <section aria-label={label}>
+    <section aria-label={label} id={id}>
       {toolbar}
       {pagination ? (
         <p className="faculty-result-meta" role="status">

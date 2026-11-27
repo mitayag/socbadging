@@ -33,3 +33,36 @@ function connect(): PrismaClient {
 export async function resetE2eRateLimits() {
   await connect().rateLimitBucket.deleteMany({});
 }
+
+export async function cleanupImportedRoster(classId: string, prefix: string) {
+  const prisma = connect();
+  const previews = await prisma.rosterImportPreview.findMany({
+    where: { classId, sourceFilename: { startsWith: prefix } },
+    select: { id: true },
+  });
+  if (previews.length) {
+    await prisma.auditLog.deleteMany({
+      where: {
+        entityType: "RosterImportPreview",
+        entityId: { in: previews.map((item) => item.id) },
+      },
+    });
+  }
+  await prisma.rosterImportPreview.deleteMany({
+    where: { classId, sourceFilename: { startsWith: prefix } },
+  });
+  await prisma.classStudent.deleteMany({
+    where: { classId, student: { studentNumber: { startsWith: prefix } } },
+  });
+  await prisma.student.deleteMany({ where: { studentNumber: { startsWith: prefix } } });
+}
+
+export async function countNotificationDeliveries() {
+  return connect().notificationDelivery.count();
+}
+
+export async function countImportedRosterStudents(classId: string, prefix: string) {
+  return connect().classStudent.count({
+    where: { classId, student: { studentNumber: { startsWith: prefix } } },
+  });
+}

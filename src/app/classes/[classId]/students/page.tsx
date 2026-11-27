@@ -158,6 +158,7 @@ export default async function StudentsPage({
 
         <DataTable
           caption="Class roster"
+          id="class-roster"
           columns={[
             { key: "number", header: "Student Number", render: (row) => row.student.studentNumber },
             {

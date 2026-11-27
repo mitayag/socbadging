@@ -88,6 +88,11 @@ export async function commitImportPreview(actor: Actor, id: string) {
     throw new Error("Import preview is no longer available");
   if (preview.errorCount) throw new Error("Resolve all validation errors before commit");
   return prisma.$transaction(async (tx) => {
+    const claimed = await tx.rosterImportPreview.updateMany({
+      where: { id, status: "READY", expiresAt: { gt: new Date() } },
+      data: { status: "COMMITTED", committedAt: new Date() },
+    });
+    if (claimed.count !== 1) throw new Error("Import preview is no longer available");
     for (const row of preview.rows) {
       const student = await tx.student.upsert({
         where: { studentNumber: row.studentNumber },
@@ -105,10 +110,6 @@ export async function commitImportPreview(actor: Actor, id: string) {
         update: { enrollmentStatus: "ACTIVE" },
       });
     }
-    await tx.rosterImportPreview.update({
-      where: { id },
-      data: { status: "COMMITTED", committedAt: new Date() },
-    });
     await tx.auditLog.create({
       data: {
         actorUserId: actor.id,
@@ -118,6 +119,6 @@ export async function commitImportPreview(actor: Actor, id: string) {
         contextJson: { classId: preview.classId, count: preview.validCount },
       },
     });
-    return preview.validCount;
+    return { classId: preview.classId, importedCount: preview.validCount };
   });
 }

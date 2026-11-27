@@ -1,178 +1,250 @@
 "use client";
-import { useState } from "react";
-type Inspect = { headers: string[]; rows: string[][] };
-type Preview = {
-  id: string;
-  validCount: number;
-  errorCount: number;
-  rows: Array<{
-    rowNumber: number;
-    studentNumber: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    errors: string[];
-  }>;
+
+import { AlertCircle, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+
+import { ImportCompleteStep } from "./import-complete-step";
+import { autoMap } from "./import-file";
+import { emptyMapping, importFields, mappingStatus } from "./import-fields";
+import { ImportMappingStep } from "./import-mapping-step";
+import { ImportProgress } from "./import-progress";
+import { ImportReviewStep } from "./import-review-step";
+import type {
+  ImportCommitState,
+  ImportInspection,
+  ImportMapping,
+  ImportPreview,
+  ImportStep,
+} from "./import-types";
+import { ImportUploadStep } from "./import-upload-step";
+
+const stepHeadings: Record<ImportStep, string> = {
+  1: "Upload roster file",
+  2: "Map columns",
+  3: "Review students",
+  4: "Import complete",
 };
+
 export function ImportWizard({
   classId,
   commitAction,
 }: {
   classId: string;
-  commitAction: (form: FormData) => void | Promise<void>;
+  commitAction: (
+    previousState: ImportCommitState,
+    formData: FormData,
+  ) => Promise<ImportCommitState>;
 }) {
+  const headingId = useId();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const previousStep = useRef<ImportStep>(1);
+  const requestVersion = useRef(0);
+  const [step, setStep] = useState<ImportStep>(1);
   const [file, setFile] = useState<File | null>(null);
-  const [data, setData] = useState<Inspect | null>(null);
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [inspection, setInspection] = useState<ImportInspection | null>(null);
+  const [mapping, setMapping] = useState<ImportMapping>(emptyMapping);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [commitResult, setCommitResult] = useState<ImportCommitState | null>(null);
   const [error, setError] = useState("");
-  const [mapping, setMapping] = useState({ studentNumber: 0, firstName: 1, lastName: 2, email: 3 });
-  async function inspect() {
-    if (!file) return;
+  const [pending, setPending] = useState<"inspect" | "preview" | null>(null);
+
+  useEffect(() => {
+    if (previousStep.current !== step) {
+      headingRef.current?.focus();
+      previousStep.current = step;
+    }
+  }, [step]);
+
+  const resetFile = useCallback(() => {
+    requestVersion.current += 1;
+    setFile(null);
+    setInspection(null);
+    setMapping(emptyMapping);
+    setPreview(null);
+    setCommitResult(null);
     setError("");
-    const f = new FormData();
-    f.set("file", file);
-    const r = await fetch(`/api/classes/${classId}/roster/import/inspect`, {
-      method: "POST",
-      body: f,
-    });
-    const j = await r.json();
-    if (!r.ok) {
-      setError(j.error);
-      return;
-    }
-    setData(j);
-    const find = (names: string[]) => {
-      const index = j.headers.findIndex((h: string) =>
-        names.includes(h.toLowerCase().replaceAll(" ", "")),
+    setPending(null);
+    setStep(1);
+  }, []);
+
+  function chooseFile(nextFile: File) {
+    requestVersion.current += 1;
+    setFile(nextFile);
+    setInspection(null);
+    setMapping(emptyMapping);
+    setPreview(null);
+    setCommitResult(null);
+    setError("");
+    setPending(null);
+    setStep(1);
+  }
+
+  function goBackToUpload() {
+    requestVersion.current += 1;
+    setInspection(null);
+    setPreview(null);
+    setPending(null);
+    setError("");
+    setStep(1);
+  }
+
+  function goBackToMapping() {
+    requestVersion.current += 1;
+    setPreview(null);
+    setPending(null);
+    setError("");
+    setStep(2);
+  }
+
+  async function inspectFile() {
+    if (!file || pending) return;
+    setPending("inspect");
+    setError("");
+    const version = ++requestVersion.current;
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch(
+        `/api/classes/${encodeURIComponent(classId)}/roster/import/inspect`,
+        { method: "POST", body: form },
       );
-      return Math.max(0, index);
-    };
-    setMapping({
-      studentNumber: find(["studentnumber", "studentid"]),
-      firstName: find(["firstname"]),
-      lastName: find(["lastname"]),
-      email: find(["email"]),
-    });
-  }
-  async function makePreview() {
-    if (!data || !file) return;
-    const r = await fetch(`/api/classes/${classId}/roster/import/preview`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: file.name, rows: data.rows, mapping }),
-    });
-    const j = await r.json();
-    if (!r.ok) {
-      setError(j.error);
-      return;
+      const result = (await response.json()) as ImportInspection & { error?: string };
+      if (!response.ok) throw new Error(result.error || "Unable to inspect the roster file.");
+      if (!Array.isArray(result.headers) || !Array.isArray(result.rows)) {
+        throw new Error("The roster file could not be read.");
+      }
+      if (!result.rows.length)
+        throw new Error("The roster file does not contain any student rows.");
+      if (requestVersion.current !== version) return;
+      setInspection(result);
+      setMapping((current) => {
+        const canPreserve = importFields.every((field) => {
+          const value = current[field.key];
+          return value !== "" && Number(value) < result.headers.length;
+        });
+        return canPreserve ? current : autoMap(result.headers);
+      });
+      setStep(2);
+    } catch (caught) {
+      if (requestVersion.current === version) {
+        setError(caught instanceof Error ? caught.message : "Unable to inspect the roster file.");
+      }
+    } finally {
+      if (requestVersion.current === version) setPending(null);
     }
-    setPreview(j);
   }
+
+  async function createPreview() {
+    if (!inspection || !file || pending || !mappingStatus(mapping).ready) return;
+    setPending("preview");
+    setError("");
+    const version = ++requestVersion.current;
+    try {
+      const response = await fetch(
+        `/api/classes/${encodeURIComponent(classId)}/roster/import/preview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            rows: inspection.rows,
+            mapping: {
+              studentNumber: Number(mapping.studentNumber),
+              firstName: Number(mapping.firstName),
+              lastName: Number(mapping.lastName),
+              email: Number(mapping.email),
+            },
+          }),
+        },
+      );
+      const result = (await response.json()) as ImportPreview & { error?: string };
+      if (!response.ok) throw new Error(result.error || "Unable to validate the roster file.");
+      if (!Array.isArray(result.rows)) throw new Error("The validation preview could not be read.");
+      if (requestVersion.current !== version) return;
+      setPreview(result);
+      setStep(3);
+    } catch (caught) {
+      if (requestVersion.current === version) {
+        setError(caught instanceof Error ? caught.message : "Unable to validate the roster file.");
+      }
+    } finally {
+      if (requestVersion.current === version) setPending(null);
+    }
+  }
+
+  const handleCommitSuccess = useCallback((state: ImportCommitState) => {
+    setCommitResult(state);
+    setStep(4);
+  }, []);
+
   return (
-    <div className="import-wizard">
-      {error && (
-        <p className="auth-error" role="alert">
+    <div className="student-import">
+      <div className="import-intro">
+        <div>
+          <span className="eyebrow">Guided roster import</span>
+          <h2 id={headingId} ref={headingRef} tabIndex={-1}>
+            {stepHeadings[step]}
+          </h2>
+          <p>
+            Import students in four steps. Nothing is added to the roster until you review and
+            confirm the validated rows.
+          </p>
+        </div>
+        <span className="import-security-note">
+          <ShieldCheck aria-hidden size={17} />
+          Server-validated
+        </span>
+      </div>
+
+      <ImportProgress step={step} />
+
+      {error ? (
+        <p className="auth-error import-alert" role="alert">
+          <AlertCircle aria-hidden size={18} />
           {error}
         </p>
-      )}
-      <div className="template-downloads">
-        <p>
-          Start with a template, replace the example row with your students, then upload the
-          completed file.
-        </p>
-        <div className="template-download-actions">
-          <a
-            className="secondary-button export-link"
-            href={`/api/classes/${classId}/roster/import/template.csv`}
-          >
-            Download CSV Template
-          </a>
-          <a
-            className="secondary-button export-link"
-            href={`/api/classes/${classId}/roster/import/template.xlsx`}
-          >
-            Download XLSX Template
-          </a>
-        </div>
-      </div>
-      <div className="inline-actions">
-        <input
-          aria-label="Roster CSV or XLSX"
-          type="file"
-          accept=".csv,.xlsx"
-          onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
-            setData(null);
-            setPreview(null);
-          }}
+      ) : null}
+
+      {step === 1 ? (
+        <ImportUploadStep
+          classId={classId}
+          file={file}
+          onFileSelected={chooseFile}
+          onInspect={inspectFile}
+          onReject={setError}
+          onRemove={resetFile}
+          pending={pending}
         />
-        <button type="button" className="secondary-button" onClick={inspect} disabled={!file}>
-          Upload and Map
-        </button>
-      </div>
-      {data && !preview && (
-        <div>
-          <h3>Map Columns</h3>
-          <div className="form-grid">
-            {Object.entries(mapping).map(([key, value]) => (
-              <label className="field" key={key}>
-                {key}
-                <select
-                  value={value}
-                  onChange={(e) => setMapping({ ...mapping, [key]: Number(e.target.value) })}
-                >
-                  {data.headers.map((h, i) => (
-                    <option value={i} key={`${h}-${i}`}>
-                      {h}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-          <button type="button" className="primary-button form-submit" onClick={makePreview}>
-            Validate Preview
-          </button>
-        </div>
-      )}
-      {preview && (
-        <div>
-          <h3>Validation Preview</h3>
-          <p>
-            <strong>{preview.validCount}</strong> valid · <strong>{preview.errorCount}</strong> with
-            errors
-          </p>
-          <div className="preview-table">
-            {preview.rows.slice(0, 50).map((r) => (
-              <div className={r.errors.length ? "preview-error" : ""} key={r.rowNumber}>
-                Row {r.rowNumber}: {r.studentNumber} · {r.firstName} {r.lastName} · {r.email}
-                {r.errors.length ? <strong>{r.errors.join("; ")}</strong> : <span>Ready</span>}
-              </div>
-            ))}
-          </div>
-          {preview.errorCount === 0 ? (
-            <form action={commitAction}>
-              <input type="hidden" name="classId" value={classId} />
-              <input type="hidden" name="previewId" value={preview.id} />
-              <button className="primary-button form-submit">
-                Commit {preview.validCount} Students
-              </button>
-            </form>
-          ) : (
-            <p className="auth-error">
-              Correct the source file and preview again. Imports with errors cannot be committed.
-            </p>
-          )}
-          {preview.errorCount > 0 && (
-            <a
-              className="secondary-button export-link"
-              href={`/api/roster-imports/${preview.id}/errors`}
-            >
-              Download Error Report
-            </a>
-          )}
-        </div>
-      )}
+      ) : null}
+
+      {step === 2 && inspection ? (
+        <ImportMappingStep
+          classId={classId}
+          file={file}
+          inspection={inspection}
+          mapping={mapping}
+          onBack={goBackToUpload}
+          onMappingChange={(field, value) =>
+            setMapping((current) => ({ ...current, [field]: value }))
+          }
+          onPreview={createPreview}
+          pending={pending}
+        />
+      ) : null}
+
+      {step === 3 && preview ? (
+        <ImportReviewStep
+          commitAction={commitAction}
+          onBack={goBackToMapping}
+          onCommitSuccess={handleCommitSuccess}
+          onCorrect={resetFile}
+          preview={preview}
+        />
+      ) : null}
+
+      {step === 4 && commitResult ? (
+        <ImportCompleteStep file={file} onReset={resetFile} result={commitResult} />
+      ) : null}
     </div>
   );
 }
