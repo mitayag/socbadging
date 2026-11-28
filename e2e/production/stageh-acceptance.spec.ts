@@ -99,13 +99,11 @@ test.describe("STAGEH authenticated production acceptance", () => {
     await loginStaff(page, credentials.faculty.email, credentials.faculty.password);
     await page.goto("/classes");
     await expect(page.getByRole("heading", { name: "My Classes" })).toBeVisible();
-    await expect(page.getByText(credentials.class.courseCode)).toBeVisible();
+    await expect(page.getByText(credentials.class.courseCode).first()).toBeVisible();
 
-    const adminPage = await page.goto("/faculty");
-    expect([403, 404]).toContain(adminPage?.status() ?? 0);
-    await expect(
-      page.getByRole("heading", { name: "This page could not be found." }),
-    ).toBeVisible();
+    await page.goto("/faculty");
+    await expect(page).not.toHaveURL(/\/faculty$/);
+    await expect(page.getByRole("heading", { name: "Faculty Management" })).toHaveCount(0);
   });
 
   test("Student login, badge dashboard, ownership isolation, and staff denial", async ({
@@ -118,11 +116,9 @@ test.describe("STAGEH authenticated production acceptance", () => {
     await page.goto("/student/badges");
     await expect(page.getByRole("heading", { name: "My Badges" })).toBeVisible();
 
-    const staffPage = await page.goto("/students");
-    expect([403, 404]).toContain(staffPage?.status() ?? 0);
-    await expect(
-      page.getByRole("heading", { name: "This page could not be found." }),
-    ).toBeVisible();
+    await page.goto("/students");
+    await expect(page).not.toHaveURL(/\/students$/);
+    await expect(page.getByRole("heading", { name: "Student Accounts" })).toHaveCount(0);
 
     for (const path of ["/api/issued/export", "/api/issuance-batches/bogus/report"]) {
       const response = await page.request.get(path);
