@@ -34,6 +34,33 @@ enum BadgeTemplateStatus {
   ARCHIVED
 }
 
+enum CourseStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum BadgeDefinitionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum BadgeReviewDecision {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PUBLISHED
+  ARCHIVED
+  VERSION_CREATED
+}
+
+enum ClassBadgeAssignmentStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 enum BadgeIssuanceStatus {
   ACTIVE
   REVOKED
@@ -138,33 +165,38 @@ enum RecipientSuppressionStatus {
 }
 
 model User {
-  id                   String                @id @default(cuid())
-  name                 String
-  email                String                @unique @db.VarChar(191)
-  normalizedEmail      String                @unique @map("normalized_email") @db.VarChar(191)
-  emailVerified        DateTime?             @map("email_verified")
-  image                String?               @db.Text
-  passwordHash         String                @map("password_hash") @db.VarChar(255)
-  role                 Role
-  status               UserStatus            @default(ACTIVE)
-  sessionVersion       Int                   @default(0) @map("session_version")
-  mustChangePassword   Boolean               @default(false) @map("must_change_password")
-  lastLoginAt          DateTime?             @map("last_login_at")
-  deletedAt            DateTime?             @map("deleted_at")
-  createdAt            DateTime              @default(now()) @map("created_at")
-  updatedAt            DateTime              @updatedAt @map("updated_at")
-  accounts             Account[]
-  sessions             Session[]
-  auditLogs            AuditLog[]            @relation("AuditActor")
-  facultyProfile       FacultyProfile?
-  ownedClasses         Class[]               @relation("ClassOwner")
-  ownedBadgeTemplates  BadgeTemplate[]       @relation("BadgeOwner")
-  rosterImportPreviews RosterImportPreview[] @relation("ImportActor")
-  issuedBadgeIssuances BadgeIssuance[]       @relation("IssuanceIssuer")
-  issuanceBatches      IssuanceBatch[]       @relation("BatchFaculty")
-  studentAccount       StudentAccount?
-  studentTokens        StudentToken[]        @relation("StudentTokenUser")
-  createdStudentTokens StudentToken[]        @relation("StudentTokenCreator")
+  id                      String                   @id @default(cuid())
+  name                    String
+  email                   String                   @unique @db.VarChar(191)
+  normalizedEmail         String                   @unique @map("normalized_email") @db.VarChar(191)
+  emailVerified           DateTime?                @map("email_verified")
+  image                   String?                  @db.Text
+  passwordHash            String                   @map("password_hash") @db.VarChar(255)
+  role                    Role
+  status                  UserStatus               @default(ACTIVE)
+  sessionVersion          Int                      @default(0) @map("session_version")
+  mustChangePassword      Boolean                  @default(false) @map("must_change_password")
+  lastLoginAt             DateTime?                @map("last_login_at")
+  deletedAt               DateTime?                @map("deleted_at")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  accounts                Account[]
+  sessions                Session[]
+  auditLogs               AuditLog[]               @relation("AuditActor")
+  facultyProfile          FacultyProfile?
+  ownedClasses            Class[]                  @relation("ClassOwner")
+  ownedBadgeTemplates     BadgeTemplate[]          @relation("BadgeOwner")
+  createdBadgeDefinitions BadgeDefinition[]        @relation("BadgeDefinitionCreator")
+  createdBadgeVersions    BadgeDefinitionVersion[] @relation("BadgeVersionCreator")
+  approvedBadgeVersions   BadgeDefinitionVersion[] @relation("BadgeVersionApprover")
+  badgeDefinitionReviews  BadgeDefinitionReview[]  @relation("BadgeReviewActor")
+  classBadgeAssignments   ClassBadgeAssignment[]   @relation("BadgeAssignmentActor")
+  rosterImportPreviews    RosterImportPreview[]    @relation("ImportActor")
+  issuedBadgeIssuances    BadgeIssuance[]          @relation("IssuanceIssuer")
+  issuanceBatches         IssuanceBatch[]          @relation("BatchFaculty")
+  studentAccount          StudentAccount?
+  studentTokens           StudentToken[]           @relation("StudentTokenUser")
+  createdStudentTokens    StudentToken[]           @relation("StudentTokenCreator")
 
   @@map("users")
 }
@@ -197,26 +229,49 @@ model Department {
   @@map("departments")
 }
 
+model Course {
+  id               String            @id @default(cuid())
+  code             String            @db.VarChar(100)
+  normalizedCode   String            @unique @map("normalized_code") @db.VarChar(100)
+  title            String            @db.VarChar(191)
+  description      String?           @db.Text
+  programsJson     Json?             @map("programs_json")
+  programsText     String?           @map("programs_text") @db.Text
+  status           CourseStatus      @default(ACTIVE)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  classes          Class[]
+  badgeDefinitions BadgeDefinition[]
+
+  @@index([status, code])
+  @@index([title])
+  @@map("courses")
+}
+
 model Class {
-  id                   String                @id @default(cuid())
-  ownerUserId          String                @map("owner_user_id")
-  courseCode           String                @map("course_code") @db.VarChar(100)
-  title                String                @db.VarChar(191)
-  section              String                @db.VarChar(100)
-  term                 String                @db.VarChar(100)
-  academicYear         String                @map("academic_year") @db.VarChar(20)
-  description          String?               @db.Text
-  status               ClassStatus           @default(ACTIVE)
-  createdAt            DateTime              @default(now()) @map("created_at")
-  updatedAt            DateTime              @updatedAt @map("updated_at")
-  owner                User                  @relation("ClassOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  id                   String                 @id @default(cuid())
+  ownerUserId          String                 @map("owner_user_id")
+  courseId             String?                @map("course_id")
+  courseCode           String                 @map("course_code") @db.VarChar(100)
+  title                String                 @db.VarChar(191)
+  section              String                 @db.VarChar(100)
+  term                 String                 @db.VarChar(100)
+  academicYear         String                 @map("academic_year") @db.VarChar(20)
+  description          String?                @db.Text
+  status               ClassStatus            @default(ACTIVE)
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  owner                User                   @relation("ClassOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  course               Course?                @relation(fields: [courseId], references: [id], onDelete: SetNull)
   enrollments          ClassStudent[]
   badgeTemplates       BadgeTemplate[]
+  badgeAssignments     ClassBadgeAssignment[]
   rosterImportPreviews RosterImportPreview[]
   badgeIssuances       BadgeIssuance[]
   issuanceBatches      IssuanceBatch[]
 
   @@index([ownerUserId, status])
+  @@index([courseId])
   @@index([courseCode])
   @@index([title])
   @@map("classes")
@@ -276,27 +331,122 @@ model RosterImportPreview {
 }
 
 model BadgeTemplate {
-  id               String              @id @default(cuid())
-  classId          String              @map("class_id")
-  ownerUserId      String              @map("owner_user_id")
-  name             String              @db.VarChar(191)
-  description      String              @db.Text
-  criteria         String              @db.Text
-  imagePath        String              @map("image_path") @db.VarChar(500)
-  status           BadgeTemplateStatus @default(ACTIVE)
-  expiresAfterDays Int?                @map("expires_after_days")
-  metadataJson     Json?               @map("metadata_json")
-  createdAt        DateTime            @default(now()) @map("created_at")
-  updatedAt        DateTime            @updatedAt @map("updated_at")
-  class            Class               @relation(fields: [classId], references: [id], onDelete: Restrict)
-  owner            User                @relation("BadgeOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
-  badgeIssuances   BadgeIssuance[]
-  issuanceBatches  IssuanceBatch[]
+  id                        String                  @id @default(cuid())
+  classId                   String                  @map("class_id")
+  ownerUserId               String                  @map("owner_user_id")
+  name                      String                  @db.VarChar(191)
+  description               String                  @db.Text
+  criteria                  String                  @db.Text
+  imagePath                 String                  @map("image_path") @db.VarChar(500)
+  status                    BadgeTemplateStatus     @default(ACTIVE)
+  expiresAfterDays          Int?                    @map("expires_after_days")
+  metadataJson              Json?                   @map("metadata_json")
+  sharedDefinitionVersionId String?                 @map("shared_definition_version_id")
+  createdAt                 DateTime                @default(now()) @map("created_at")
+  updatedAt                 DateTime                @updatedAt @map("updated_at")
+  class                     Class                   @relation(fields: [classId], references: [id], onDelete: Restrict)
+  owner                     User                    @relation("BadgeOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  sharedDefinitionVersion   BadgeDefinitionVersion? @relation(fields: [sharedDefinitionVersionId], references: [id], onDelete: SetNull)
+  classAssignment           ClassBadgeAssignment?
+  badgeIssuances            BadgeIssuance[]
+  issuanceBatches           IssuanceBatch[]
 
   @@index([classId, status])
   @@index([ownerUserId])
   @@index([name])
+  @@index([sharedDefinitionVersionId])
   @@map("badge_templates")
+}
+
+model BadgeDefinition {
+  id              String                   @id @default(cuid())
+  courseId        String                   @map("course_id")
+  name            String                   @db.VarChar(191)
+  createdByUserId String                   @map("created_by_user_id")
+  status          BadgeDefinitionStatus    @default(DRAFT)
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+  course          Course                   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  createdBy       User                     @relation("BadgeDefinitionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  versions        BadgeDefinitionVersion[]
+  assignments     ClassBadgeAssignment[]
+
+  @@index([courseId, status])
+  @@index([name])
+  @@index([createdByUserId])
+  @@map("badge_definitions")
+}
+
+model BadgeDefinitionVersion {
+  id                    String                  @id @default(cuid())
+  badgeDefinitionId     String                  @map("badge_definition_id")
+  version               Int
+  name                  String                  @db.VarChar(191)
+  description           String                  @db.Text
+  competencies          String                  @db.Text
+  assessmentCriteria    String                  @map("assessment_criteria") @db.Text
+  gradingPeriod         String?                 @map("grading_period") @db.VarChar(100)
+  issuingInstitution    String                  @map("issuing_institution") @db.VarChar(191)
+  validityDays          Int?                    @map("validity_days")
+  imagePath             String                  @map("image_path") @db.VarChar(500)
+  criteria              String                  @db.Text
+  metadataJson          Json?                   @map("metadata_json")
+  status                BadgeDefinitionStatus   @default(DRAFT)
+  createdByUserId       String                  @map("created_by_user_id")
+  approvedByUserId      String?                 @map("approved_by_user_id")
+  approvedAt            DateTime?               @map("approved_at")
+  rejectionReason       String?                 @map("rejection_reason") @db.Text
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+  badgeDefinition       BadgeDefinition         @relation(fields: [badgeDefinitionId], references: [id], onDelete: Cascade)
+  createdBy             User                    @relation("BadgeVersionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy            User?                   @relation("BadgeVersionApprover", fields: [approvedByUserId], references: [id], onDelete: Restrict)
+  reviews               BadgeDefinitionReview[]
+  classAssignments      ClassBadgeAssignment[]
+  materializedTemplates BadgeTemplate[]
+
+  @@unique([badgeDefinitionId, version])
+  @@index([badgeDefinitionId, status])
+  @@index([status])
+  @@map("badge_definition_versions")
+}
+
+model BadgeDefinitionReview {
+  id                       String                 @id @default(cuid())
+  badgeDefinitionVersionId String                 @map("badge_definition_version_id")
+  actorUserId              String                 @map("actor_user_id")
+  decision                 BadgeReviewDecision
+  note                     String?                @db.Text
+  createdAt                DateTime               @default(now()) @map("created_at")
+  badgeDefinitionVersion   BadgeDefinitionVersion @relation(fields: [badgeDefinitionVersionId], references: [id], onDelete: Cascade)
+  actor                    User                   @relation("BadgeReviewActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([badgeDefinitionVersionId, createdAt])
+  @@index([actorUserId])
+  @@map("badge_definition_reviews")
+}
+
+model ClassBadgeAssignment {
+  id                       String                     @id @default(cuid())
+  classId                  String                     @map("class_id")
+  badgeDefinitionId        String                     @map("badge_definition_id")
+  badgeDefinitionVersionId String                     @map("badge_definition_version_id")
+  badgeTemplateId          String?                    @unique @map("badge_template_id")
+  assignedByUserId         String                     @map("assigned_by_user_id")
+  status                   ClassBadgeAssignmentStatus @default(ACTIVE)
+  archivedAt               DateTime?                  @map("archived_at")
+  createdAt                DateTime                   @default(now()) @map("created_at")
+  updatedAt                DateTime                   @updatedAt @map("updated_at")
+  class                    Class                      @relation(fields: [classId], references: [id], onDelete: Restrict)
+  badgeDefinition          BadgeDefinition            @relation(fields: [badgeDefinitionId], references: [id], onDelete: Restrict)
+  badgeDefinitionVersion   BadgeDefinitionVersion     @relation(fields: [badgeDefinitionVersionId], references: [id], onDelete: Restrict)
+  badgeTemplate            BadgeTemplate?             @relation(fields: [badgeTemplateId], references: [id], onDelete: SetNull)
+  assignedBy               User                       @relation("BadgeAssignmentActor", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([classId, badgeDefinitionId])
+  @@index([classId, status])
+  @@index([badgeDefinitionVersionId])
+  @@map("class_badge_assignments")
 }
 
 model BadgeIssuance {
@@ -519,21 +669,21 @@ model NotificationDeliveryEvent {
 }
 
 model RecipientSuppression {
-  id               String                      @id @default(cuid())
-  normalizedEmail  String                      @unique @map("normalized_email") @db.VarChar(191)
-  recipientEmail   String                      @map("recipient_email") @db.VarChar(191)
+  id               String                     @id @default(cuid())
+  normalizedEmail  String                     @unique @map("normalized_email") @db.VarChar(191)
+  recipientEmail   String                     @map("recipient_email") @db.VarChar(191)
   reason           RecipientSuppressionReason
-  provider         String                      @default("brevo") @db.VarChar(32)
-  providerEventId  String?                     @map("provider_event_id") @db.VarChar(191)
-  sourceDeliveryId String?                     @map("source_delivery_id") @db.VarChar(191)
-  suppressedAt     DateTime                    @map("suppressed_at")
-  evidenceJson     Json?                       @map("evidence_json")
+  provider         String                     @default("brevo") @db.VarChar(32)
+  providerEventId  String?                    @map("provider_event_id") @db.VarChar(191)
+  sourceDeliveryId String?                    @map("source_delivery_id") @db.VarChar(191)
+  suppressedAt     DateTime                   @map("suppressed_at")
+  evidenceJson     Json?                      @map("evidence_json")
   status           RecipientSuppressionStatus @default(ACTIVE)
-  clearedAt        DateTime?                   @map("cleared_at")
-  clearedByUserId  String?                     @map("cleared_by_user_id")
-  clearReason      String?                     @map("clear_reason") @db.Text
-  createdAt        DateTime                    @default(now()) @map("created_at")
-  updatedAt        DateTime                    @updatedAt @map("updated_at")
+  clearedAt        DateTime?                  @map("cleared_at")
+  clearedByUserId  String?                    @map("cleared_by_user_id")
+  clearReason      String?                    @map("clear_reason") @db.Text
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime                   @updatedAt @map("updated_at")
 
   @@index([status, suppressedAt])
   @@index([reason, status])

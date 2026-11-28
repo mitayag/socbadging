@@ -7,6 +7,13 @@ import { getClassWorkspace } from "@/modules/rosters/services/roster-service";
 import { getClassTabs } from "@/components/layout/navigation";
 import { listBadges } from "@/modules/badges/services/badge-service";
 import {
+  listAssignableBadges,
+  listClassAssignments,
+} from "@/modules/badge-library/services/class-badge-assignment-service";
+import { ConfirmDialogButton } from "@/components/ui/confirm-dialog-button";
+import {
+  archiveAssignmentAction,
+  assignBadgeAction,
   createBadgeAction,
   duplicateBadgeAction,
   editBadgeAction,
@@ -82,9 +89,11 @@ export default async function BadgesPage({
   const classId = (await params).classId;
   const q = await searchParams;
   const status = q.status === "ACTIVE" || q.status === "ARCHIVED" ? q.status : undefined;
-  const [item, badges] = await Promise.all([
+  const [item, badges, assignments, assignable] = await Promise.all([
     getClassWorkspace(actor, classId),
     listBadges(actor, classId, q.q ?? "", status),
+    listClassAssignments(actor, classId),
+    listAssignableBadges(actor, classId),
   ]);
   return (
     <AppShell actor={actor} title={item.courseCode}>
@@ -105,7 +114,106 @@ export default async function BadgesPage({
             </Link>
           ))}
         </nav>
-        {q.notice && <p className="notice">Badge template created successfully.</p>}
+        {q.notice === "created" && (
+          <p className="notice" role="status">
+            Badge template created successfully.
+          </p>
+        )}
+        {q.notice === "assigned" && (
+          <p className="notice" role="status">
+            Approved badge assigned to this class.
+          </p>
+        )}
+        {q.notice === "assignment-archived" && (
+          <p className="notice" role="status">
+            Badge assignment archived. Historical credentials were preserved.
+          </p>
+        )}
+        {q.error && (
+          <p className="notice error" role="alert">
+            {q.error}
+          </p>
+        )}
+
+        <section className="panel">
+          <h2>Shared Badge Assignments</h2>
+          <p className="muted">
+            Approved badge definitions assigned from the centralized library. Faculty cannot modify
+            an approved shared definition; create a new version through the library instead.
+          </p>
+          {assignments.length ? (
+            <div
+              aria-label="Shared badge assignments table"
+              className="data-table-scroll"
+              role="region"
+              tabIndex={0}
+            >
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Badge</th>
+                    <th scope="col">Version</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Issued</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignments.map((assignment) => (
+                    <tr key={assignment.id}>
+                      <td>{assignment.badgeDefinition.name}</td>
+                      <td>v{assignment.badgeDefinitionVersion.version}</td>
+                      <td>
+                        <span className={`status ${assignment.status.toLowerCase()}`}>
+                          {assignment.status}
+                        </span>
+                      </td>
+                      <td>{assignment.badgeTemplate?._count.badgeIssuances ?? 0}</td>
+                      <td>
+                        {assignment.status === "ACTIVE" ? (
+                          <ConfirmDialogButton
+                            action={archiveAssignmentAction}
+                            confirmLabel="Archive Assignment"
+                            description="Issuance for this badge stops immediately. Existing credentials, signatures and public URLs are preserved."
+                            fields={{ classId, assignmentId: assignment.id }}
+                            title={`Archive ${assignment.badgeDefinition.name}?`}
+                            triggerLabel="Archive"
+                          />
+                        ) : (
+                          <span className="muted">Archived</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty-state">No shared badges are assigned to this class.</div>
+          )}
+          {assignable.length ? (
+            <details>
+              <summary className="panel-summary">Assign an Approved Badge</summary>
+              <form action={assignBadgeAction} className="form-grid">
+                <input name="classId" type="hidden" value={classId} />
+                <label className="field full">
+                  Approved Badge
+                  <select name="versionId" required>
+                    {assignable.map((badge) => (
+                      <option key={badge.definitionId} value={badge.version?.id}>
+                        {badge.recommended ? "Recommended · " : ""}
+                        {badge.name} · {badge.course.code} · v{badge.version?.version}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="primary-button form-submit">Assign Badge</button>
+              </form>
+            </details>
+          ) : (
+            <p className="muted">No additional approved badges are available for this class.</p>
+          )}
+        </section>
         {actor.role === "FACULTY" && (
           <details className="panel">
             <summary className="panel-summary">Create Badge Template</summary>
@@ -142,7 +250,7 @@ export default async function BadgesPage({
                 <strong>Criteria</strong>
                 <p>{b.criteria}</p>
               </div>
-              {actor.role === "FACULTY" && (
+              {actor.role === "FACULTY" && !b.sharedDefinitionVersionId && (
                 <details>
                   <summary>Edit Template</summary>
                   <form action={editBadgeAction} className="form-grid">
@@ -174,6 +282,12 @@ export default async function BadgesPage({
                   </div>
                 </details>
               )}
+              {b.sharedDefinitionVersionId ? (
+                <p className="muted">
+                  Shared badge from the centralized library. Manage it in the{" "}
+                  <Link href="/library">Badge Library</Link>.
+                </p>
+              ) : null}
             </article>
           ))}
           {!badges.items.length && (

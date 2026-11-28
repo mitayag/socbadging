@@ -8,6 +8,8 @@ describe("getNavigationItems", () => {
       "Dashboard",
       "Classes",
       "Issued Badges",
+      "Course Catalog",
+      "Badge Library",
       "Notifications",
       "Faculty Management",
       "Students",
@@ -21,9 +23,13 @@ describe("getNavigationItems", () => {
       "Dashboard",
       "Classes",
       "Issued Badges",
+      "Badge Library",
       "My Profile",
     ]);
     expect(getNavigationItems("FACULTY").some((item) => item.label === "Faculty Management")).toBe(
+      false,
+    );
+    expect(getNavigationItems("FACULTY").some((item) => item.label === "Course Catalog")).toBe(
       false,
     );
   });

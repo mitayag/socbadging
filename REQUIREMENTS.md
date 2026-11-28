@@ -72,6 +72,12 @@ Build a modern, light web-based badging system for HAU School of Computing where
 - **FR-021 Search/Filter:** Search/filter classes, badges, students, and issued credentials.
 - **FR-022 Exports:** Roster and issuance CSV export.
 - **FR-023 System Settings:** Issuer name/logo/URL/support contact/default public-page behavior.
+- **FR-024 Course Catalog:** Administrator-managed standardized courses (code, title, description, programs, lifecycle) with search, sorting, filtering and pagination; class sections can be mapped to a course.
+- **FR-025 Centralized Badge Library:** Institutional badge definitions with course association, artwork, description, competencies, assessment criteria, grading period, issuing institution, validity, creator and status.
+- **FR-026 Badge Approval and Versioning:** Faculty proposals; Administrator approval/rejection/publication/archival; immutable versions; review history; material changes create a new version without altering issued credentials.
+- **FR-027 Shared Class Badge Assignment:** One approved badge definition can be assigned to multiple class sections owned by different faculty; duplicate assignments are prevented; historical assignments are preserved; issuance reuses existing signing and notification mechanisms.
+- **FR-028 Badge Library Governance:** Faculty may browse approved badges and submit proposals but cannot modify approved shared definitions; Administrator-only approval; all sensitive actions audited.
+- **FR-029 Shared Badge Migration:** Backward-compatible promotion of existing class badges into the library with dry-run, duplicate detection, reconciliation report, backup and rollback procedures.
 
 ## 5. P1 Requirements
 
@@ -258,6 +264,18 @@ Do not call the product “Open Badges certified” until the applicable 1EdTech
 13. Revocation preserves history.
 14. Admin can inspect issuance/revocation audit records.
 15. Critical workflows have automated authorization/integration/E2E tests.
+
+## 12a. Stage 7 Release 1 Acceptance (Shared Badge Library)
+
+1. Administrator can create and archive standardized courses and map class sections to them.
+2. Faculty can propose badges; Administrators approve, reject, publish and archive versions.
+3. Approved definitions are reusable across multiple class sections and faculty members.
+4. Faculty can assign approved badges only to their own classes; duplicate assignments are prevented.
+5. Faculty cannot modify approved shared definitions or approve badges.
+6. Version changes and archival preserve all historical credentials, signatures and public URLs.
+7. Individual and batch issuance continue to use the existing signing and notification pipeline.
+8. Existing classes, badges, issuances, revocations, notifications and audit records are preserved.
+9. Migration provides a dry-run, duplicate detection, reconciliation report, backup and rollback.
 
 ## 13. Codex Build Sequence
 

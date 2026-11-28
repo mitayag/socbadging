@@ -220,6 +220,47 @@ select {
   border: 1px solid #bce4c8;
   border-radius: var(--radius-control);
 }
+.notice.error {
+  color: var(--danger);
+  background: #fff0ef;
+  border-color: #f3c4c0;
+}
+.status.draft {
+  color: var(--muted);
+  background: #eef2f7;
+}
+.status.pending_approval {
+  color: #9a6700;
+  background: #fff7d6;
+}
+.status.approved {
+  color: var(--success);
+  background: #eaf8ef;
+}
+.status.rejected {
+  color: var(--danger);
+  background: #fff0ef;
+}
+.badge-detail {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.badge-detail img {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+}
+.approval-actions {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+@media (max-width: 720px) {
+  .badge-detail {
+    grid-template-columns: 1fr;
+  }
+}
 .inline-actions,
 .reset-form {
   display: flex;

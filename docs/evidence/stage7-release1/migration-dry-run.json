@@ -1,0 +1,67 @@
+{
+  "mode": "dry-run",
+  "generatedAt": "2026-11-28T06:15:22.350Z",
+  "courses": {
+    "created": 1,
+    "existing": 0,
+    "plans": [
+      {
+        "normalizedCode": "CS101",
+        "code": "CS101",
+        "title": "Intro to Computing",
+        "classIds": ["c-1", "c-2"],
+        "existingCourseId": null
+      }
+    ]
+  },
+  "classes": {
+    "mapped": 2,
+    "alreadyMapped": 0
+  },
+  "templates": {
+    "planned": 2,
+    "created": 0,
+    "skippedLinked": 0,
+    "plans": [
+      {
+        "templateId": "b-1",
+        "classId": "c-1",
+        "className": "CS101 · A",
+        "name": "Prelim Skills",
+        "courseId": "dry-run:CS101",
+        "courseCode": "CS101",
+        "status": "ACTIVE",
+        "imagePath": "badges/a.png",
+        "criteria": "Build a working app",
+        "action": "create-definition"
+      },
+      {
+        "templateId": "b-2",
+        "classId": "c-2",
+        "className": "CS101 · B",
+        "name": "Prelim Skills",
+        "courseId": "dry-run:CS101",
+        "courseCode": "CS101",
+        "status": "ACTIVE",
+        "imagePath": "badges/a.png",
+        "criteria": "Build a working app",
+        "action": "create-definition"
+      }
+    ]
+  },
+  "duplicates": [
+    {
+      "key": "dry-run:CS101:prelim skills",
+      "reason": "same-name-and-course",
+      "definitionIds": ["planned:b-1", "planned:b-2"],
+      "names": ["Prelim Skills", "Prelim Skills"]
+    },
+    {
+      "key": "badges/a.png:build a working app",
+      "reason": "same-artwork-and-criteria",
+      "definitionIds": ["planned:b-1", "planned:b-2"],
+      "names": ["Prelim Skills", "Prelim Skills"]
+    }
+  ],
+  "errors": []
+}

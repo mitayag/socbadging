@@ -5,6 +5,8 @@ import {
   ClipboardList,
   Gauge,
   GraduationCap,
+  Library,
+  BookMarked,
   Settings,
   UserRound,
   Users,
@@ -26,6 +28,8 @@ const dashboard: NavigationItem = {
   phase: "available",
 };
 const adminItems: NavigationItem[] = [
+  { label: "Course Catalog", href: "/catalog", icon: BookMarked, phase: "available" },
+  { label: "Badge Library", href: "/library", icon: Library, phase: "available" },
   { label: "Notifications", href: "/notifications", icon: Bell, phase: "available" },
   {
     label: "Faculty Management",
@@ -72,7 +76,13 @@ export function getNavigationItems(role: Role): NavigationItem[] {
   if (role === "STUDENT") return studentItems;
   return role === "ADMIN"
     ? [dashboard, classes, issuedBadges, ...adminItems]
-    : [dashboard, classes, issuedBadges, profile];
+    : [
+        dashboard,
+        classes,
+        issuedBadges,
+        { label: "Badge Library", href: "/library", icon: Library, phase: "available" },
+        profile,
+      ];
 }
 
 export function getClassTabs(
