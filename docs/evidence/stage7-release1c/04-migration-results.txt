@@ -1,0 +1,43 @@
+Stage 7 Release 1C — Production Migration Results
+Captured: 2026-11-28T07:30Z through 07:37Z
+
+Schema
+- Migration applied: 20261128120000_stage7_shared_badge_library
+- Ledger: 21 -> 22, 0 pending/failed
+
+Promotion dry-run (before apply)
+- Courses: 3 to create (2 existing course codes + STAGE7-CAP-001)
+- Classes mapped: 4 (2 production + 2 STAGE7 test)
+- Badge definitions: 3 planned
+- Duplicate groups: 0
+- Errors: 0
+
+Promotion apply
+- 3 courses created
+- 4 classes mapped
+- 3 badge definitions, 3 versions, 3 assignments and 3 template links created
+- 0 automatic merges or deletions
+
+Idempotency
+- Second apply: 0 created, 0 mapped, 3 already linked
+- Final dry-run: 0 to create, 0 created, 0 duplicate groups, 0 errors
+
+Historical integrity (before -> after)
+- issuances: 3 -> 3
+- issuance identity CRC32 sum: 10420535069 -> 10420535069
+- signed credential CRC32 sum: 5032942483 -> 5032942483
+- notification deliveries: 4 -> 4
+- delivery attempts: 2 -> 2
+- status allocations: 3 -> 3
+
+Resulting production library
+- courses: 3
+- badge definitions: 3
+- badge definition versions: 3
+- class badge assignments: 3
+- linked templates: 3
+- STAGE7 test-course mappings: 2
+- audit logs after promotion: 72 (+3 backfill audits)
+
+No credential was reissued; no public ID, signature, expiry, revocation state or signing key changed.
+No notification was generated.

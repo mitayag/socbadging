@@ -1,0 +1,40 @@
+Stage 7 Release 1C — Backups and Baseline
+Captured: 2026-11-28
+
+Backups created on production
+1. Pre-provisioning: /var/backups/hau-soc/stage7-release1c-preprovision-20261128T071645Z
+2. Pre-deployment:  /var/backups/hau-soc/stage7-release1c-predeploy-20261128T072717Z
+3. Release 1B:      /var/backups/hau-soc/stage7-release1b-20261128T064647Z
+
+Each pre-deployment backup contains
+- badging-db.sql.gz (MariaDB logical dump, routines/triggers)
+- media.tar.gz (badge artwork/media)
+- secrets.tar.gz (secrets dir, private signing key, public key)
+- production.env
+- config.tar.gz (compose/Dockerfile)
+- overrides for stage6d and stage7
+- containers.json / images.json (rollback identifiers)
+- SHA256SUMS
+
+Verification
+- sha256sum -c: all OK
+- gzip -t: OK
+- tar listing: OK
+- signing key JSON parse: OK (contents not printed)
+
+Pre-deployment database baseline (after test-account provisioning)
+- issuances: 3
+- issuance identity CRC32 sum: 10420535069
+- signed credential CRC32 sum: 5032942483
+- notification deliveries: 4
+- delivery attempts: 2
+- audit logs: 69
+- classes: 4 (2 production + 2 STAGE7 test)
+- badge templates: 3
+- students: 43 (41 production + 2 STAGE7 test)
+- users: 7 (2 production + 5 STAGE7 test)
+- migrations: 21
+- test accounts: 1 ADMIN, 2 FACULTY, 2 STUDENT, all ACTIVE
+- test classes: 2 (STAGE7-CAP-001 sections A/B)
+- test sessions: 0
+- notification deliveries were unchanged at 4 (no provisioning email)

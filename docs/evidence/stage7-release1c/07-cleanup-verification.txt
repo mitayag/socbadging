@@ -1,0 +1,37 @@
+Stage 7 Release 1D — Cleanup Verification
+Captured: 2026-11-28
+
+Cleanup actions (no hard deletes)
+- Test users suspended: 5
+- Sessions removed: 46
+- Password reset tokens removed: 0
+- Student tokens removed: 0
+- Test classes archived: 2 (STAGE7-CAP-001 sections A/B)
+- Test courses archived: 3 (STAGE7-CAP-001 + 2 acceptance courses)
+- Test badge definitions archived: 12
+- Test badge versions archived: 16
+- Test class badge assignments archived: 10
+- Materialized test templates archived: 10
+- Audit records preserved; cleanup recorded as stage7.test_data_archived
+
+Post-cleanup verification
+- STAGE7 users: 5 SUSPENDED, 0 active
+- STAGE7 sessions: 0
+- STAGE7 classes: ARCHIVED
+- STAGE7 courses: ARCHIVED
+- STAGE7 test badges: ARCHIVED
+- Production issuances: 3
+- Issuance identity CRC32 sum: 10420535069 (unchanged)
+- Signed credential CRC32 sum: 5032942483 (unchanged)
+- Notification deliveries: 4
+- Delivery attempts: 2
+- Audit logs: 181 (preserved)
+- Existing production accounts/classes/badges/issuances were not modified
+
+Credentials
+- Production temporary credentials file removed after transfer
+- Local credentials file removed with overwrite (-P) after acceptance
+- No credentials in the repository, screenshots or CI artifacts
+
+Staging
+- Restarted after the production build; all staging services healthy

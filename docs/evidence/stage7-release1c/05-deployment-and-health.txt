@@ -1,0 +1,38 @@
+Stage 7 Release 1C — Deployment and Health
+Captured: 2026-11-28T07:37Z through 07:45Z
+
+Rollout
+- Worker deployed first: healthy, cycles every ~5s, processed 0, no timeout/error/stall
+- Web deployed second: healthy
+- Containers: web, worker, signer, db, mailpit all healthy
+- New images: stage7-release1-c64038b
+- Volumes, secrets and signing keys preserved; no database recreation
+
+Health
+- Public /api/health: status=ok, readiness=ready, database=ready, signer=ready,
+  notifications=ready, workerHeartbeat=fresh
+- Local web health on 192.168.3.234:3002: 200 ready
+- Worker heartbeat: fresh
+- Queue: 2 SENT, 2 FAILED, 0 STARTED
+- Notification deliveries: 4 (unchanged)
+
+Public endpoints
+- /api/health 200
+- /login 200
+- /dashboard 200
+- /student 307
+- /catalog 307 (unauthenticated -> login)
+- /library 307 (unauthenticated -> login)
+- /api/issuers/hau-soc 200
+- /api/status-lists/status-list-local 200
+- Historical credentials (3): page 200, API 200, image 200, QR 200 for each
+- HTTPS reverse proxy reachable (openresty); root 307 redirect
+
+Historical credential integrity (after deployment)
+- issuances: 3
+- issuance identity CRC32 sum: 10420535069
+- signed credential CRC32 sum: 5032942483
+- no reissuance, no signature change, no notification
+
+Staging
+- Staging stack was paused for the build and restarted afterwards; all services healthy.

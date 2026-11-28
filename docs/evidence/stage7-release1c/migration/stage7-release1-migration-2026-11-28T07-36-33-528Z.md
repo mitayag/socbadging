@@ -1,0 +1,29 @@
+# Stage 7 Release 1 Migration Dry Run
+
+Generated: 2026-11-28T07:36:33.190Z
+
+## Summary
+
+- Courses: 3 to create, 0 already present
+- Classes mapped to a course: 4 (0 already mapped)
+- Badge definitions: 3 planned, 0 created, 0 already linked
+- Duplicate groups for review: 0
+- Errors: 0
+
+## Courses
+
+| Code           | Title                               | Classes | Existing |
+| -------------- | ----------------------------------- | ------- | -------- |
+| 2292           | 6ADET                               | 1       | new      |
+| 6IOTSEC        | IoT Security                        | 1       | new      |
+| STAGE7-CAP-001 | STAGE7 Test Application Development | 2       | new      |
+
+## Duplicate candidates
+
+None detected.
+
+## Errors
+
+None.
+
+No existing badge, issuance, signature, public ID, revocation, notification or audit record was modified.

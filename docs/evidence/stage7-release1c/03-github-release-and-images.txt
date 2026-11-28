@@ -1,0 +1,30 @@
+Stage 7 Release 1C — GitHub Release and Images
+Captured: 2026-11-28
+
+Branches
+- feature/stage7-release1-shared-badge-library -> 7d654fd (script secret fix)
+- release/v0.5.0-rc.1 -> c64038b5caaccb0b378609d33de487e1e82a17d1
+  - ccfe596: "release: merge Stage 7 Release 1 shared badge library"
+  - c64038b: "release: fix Stage 7 promotion script database secret handling"
+
+CI (Quality: format, lint, typecheck, unit tests, build)
+- 46120955937: success (ccfe596)
+- 46121595659: success (c64038b)
+
+Production source
+- /opt/socbadging detached HEAD: c64038b
+- working tree: only the pre-existing untracked deploy/staging-healthfix.override.yaml
+
+Images (amd64)
+- web:     hau-soc-badging-web:stage7-release1-c64038b
+           sha256:365324803329e2ca199c0c8d020206045fa0e00dfa54d00d60d37aecae53834d
+- worker:  hau-soc-badging-worker:stage7-release1-c64038b
+           sha256:a23b29f60a8ce4d974411246c8de55cacbaf16c2b4a65f0b29b241deac2349b7
+- migrate: hau_soc_badging_stage2-migrate:latest
+           sha256:654a51a23086e9d38bb6ab1d139beebe5298e14b7fd888216570e736d5a6e4a0
+
+Rollback images
+- web:    hau-soc-badging-web:pre-stage7     sha256:dd11647ca67e34e3ea887430b2b2955e6ad0b6e2b8f9dcb904ec5b3a815862e6
+- worker: hau-soc-badging-worker:pre-stage7  sha256:a8faa3607a25093f7b4b0b3dc5180199289d4ff04775e377b2d50eed0ace6a02
+
+No uncommitted application code was deployed.

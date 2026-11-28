@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
@@ -43,6 +43,32 @@ async function login(page: Page, email: string, password: string, target: RegExp
   await expect(page).toHaveURL(target, { timeout: 20_000 });
 }
 
+async function createEditAndArchiveCourse(page: Page, code: string) {
+  await page.goto("/catalog");
+  const panel = page.locator("details", { hasText: "Create Course" });
+  await ensureOpen(panel);
+  await panel.getByLabel("Course Code").fill(code);
+  await panel.getByLabel("Course Title").fill("STAGE7 E2E Course");
+  await panel.getByLabel("Description").fill("Stage 7 production acceptance test course");
+  await panel.getByLabel(/Academic Programs/).fill("BS Computer Science");
+  await panel.getByRole("button", { name: "Create Course" }).click();
+  await expect(page.getByText("Course created successfully.")).toBeVisible();
+
+  await page.goto(`/catalog?q=${encodeURIComponent(code)}`);
+  const row = page.getByRole("row", { name: new RegExp(code) }).first();
+  await expect(row).toBeVisible();
+  await row.getByText("Edit", { exact: true }).click();
+  await row.getByLabel("Course Title").fill("STAGE7 E2E Course Edited");
+  await row.getByRole("button", { name: "Save Course" }).click();
+  await expect(page.getByText("Course updated successfully.")).toBeVisible();
+
+  await page.goto(`/catalog?q=${encodeURIComponent(code)}`);
+  const updatedRow = page.getByRole("row", { name: new RegExp(code) }).first();
+  await updatedRow.getByRole("button", { name: "Archive" }).click();
+  await page.getByRole("button", { name: "Archive Course" }).click();
+  await expect(page.getByText(/Course archived/)).toBeVisible();
+}
+
 async function createAndApproveBadge(page: Page, name: string) {
   await page.goto(`/catalog?q=${encodeURIComponent(stage7!.course.code)}`);
   await expect(
@@ -51,7 +77,7 @@ async function createAndApproveBadge(page: Page, name: string) {
 
   await page.goto("/library");
   const panel = page.locator("details", { hasText: "Create Badge Definition" });
-  await panel.locator("summary").click();
+  await ensureOpen(panel);
   await panel
     .getByLabel("Associated Course")
     .selectOption({ label: `${stage7!.course.code} · ${stage7!.course.title}` });
@@ -81,15 +107,20 @@ async function openBadge(page: Page, name: string) {
   await expect(page.getByRole("heading", { name })).toBeVisible();
 }
 
+async function ensureOpen(panel: Locator) {
+  const open = await panel.evaluate((element) => (element as HTMLDetailsElement).open);
+  if (!open) await panel.locator("summary").click();
+}
+
 async function assignToClass(page: Page, classId: string, section: string) {
   const panel = page.locator("details", { hasText: "Assign to a Class Section" });
-  await panel.locator("summary").click();
+  await ensureOpen(panel);
   const option = panel.getByRole("option", { name: new RegExp(`· ${section} \\(`) });
   const value = await option.getAttribute("value");
   if (!value) throw new Error("Class option was not rendered");
   await panel.getByLabel("Class Section").selectOption(value);
   await panel.getByRole("button", { name: "Assign Badge" }).click();
-  await expect(page.getByText("Badge assigned to the class.")).toBeVisible();
+  await expect(page.getByText("Badge assigned to the class section.")).toBeVisible();
 }
 
 test.describe.serial("Stage 7 production acceptance", () => {
@@ -101,6 +132,10 @@ test.describe.serial("Stage 7 production acceptance", () => {
     test.skip(!stage7 || !credentials);
     const badgeName = `STAGE7 E2E Primary ${suffix} ${test.info().project.name}`;
     await login(page, credentials!.admin.email, credentials!.admin.password, /\/dashboard$/);
+    await createEditAndArchiveCourse(
+      page,
+      `STAGE7-E2E-${suffix}-${test.info().project.name}`.toUpperCase(),
+    );
     await createAndApproveBadge(page, badgeName);
   });
 
@@ -111,6 +146,10 @@ test.describe.serial("Stage 7 production acceptance", () => {
     test.skip(!stage7 || !credentials);
     const badgeName = `STAGE7 E2E Primary ${suffix} ${test.info().project.name}`;
     await login(page, stage7!.facultyA.email, stage7!.facultyA.password, /\/dashboard$/);
+    await page.goto("/library?scope=queue");
+    await expect(page.getByText("Approval Queue")).toHaveCount(0);
+    await page.goto("/catalog");
+    await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto("/classes");
     await expect(page.locator(`a[href*="${stage7!.classB.id}"]`)).toHaveCount(0);
     await page.goto("/library?scope=library");
@@ -122,7 +161,7 @@ test.describe.serial("Stage 7 production acceptance", () => {
     await page.goto(`/library?q=${encodeURIComponent(badgeName)}`);
     await openBadge(page, badgeName);
     const panel = page.locator("details", { hasText: "Assign to a Class Section" });
-    await panel.locator("summary").click();
+    await ensureOpen(panel);
     const option = panel.getByRole("option", { name: /· A \(/ });
     const value = await option.getAttribute("value");
     await panel.getByLabel("Class Section").selectOption(value ?? "");
@@ -141,7 +180,7 @@ test.describe.serial("Stage 7 production acceptance", () => {
 
       await pageB.goto("/library?scope=mine");
       const proposalPanel = pageB.locator("details", { hasText: "Propose a Badge" });
-      await proposalPanel.locator("summary").click();
+      await ensureOpen(proposalPanel);
       await proposalPanel
         .getByLabel("Associated Course")
         .selectOption({ label: `${stage7!.course.code} · ${stage7!.course.title}` });
@@ -184,12 +223,14 @@ test.describe.serial("Stage 7 production acceptance", () => {
     await expect(associations.locator("tbody tr")).toHaveCount(2);
 
     const versionPanel = page.locator("details", { hasText: "Create a New Version" });
-    await versionPanel.locator("summary").click();
+    await ensureOpen(versionPanel);
     await versionPanel.getByLabel("Description").fill("Stage 7 production acceptance version two");
     await versionPanel.getByLabel("Competencies").fill("Updated competencies");
     await versionPanel.getByLabel("Assessment Criteria").fill("Updated assessment criteria");
     await versionPanel.getByRole("button", { name: "Create Version" }).click();
-    await expect(page.getByText("New badge version created.")).toBeVisible();
+    await expect(
+      page.getByText("A new version was created. Existing credentials are unchanged."),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Submit for Approval" }).click();
     await expect(page.getByText("Badge version submitted for approval.")).toBeVisible();
     await page.getByRole("button", { name: "Approve & Publish" }).click();

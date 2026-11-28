@@ -1,0 +1,32 @@
+Stage 7 Release 1C — Preflight and Production Environment
+Captured: 2026-11-28T07:16Z through 07:27Z
+
+Repository
+- branch: feature/stage7-release1-shared-badge-library (HEAD 7d654fd at start)
+- release branch: release/v0.5.0-rc.1 (HEAD 4eb403f at start)
+- production commit at start: 4eb403f
+- prior fixes included: 3ffd0ca (student import), c90ad36 (email/acceptance), 4eb403f (worker fix)
+- merge conflicts vs release branch: none
+
+Production
+- host: badging-server, x86_64
+- compose project: hau_soc_badging_stage2
+- existing services: web, worker, signer, db, mailpit — all healthy
+- health: readiness=ready, database=ready, signer=ready, notifications=ready, heartbeat=fresh
+- migrations: 21 applied, 0 pending
+- queue: 2 SENT, 2 FAILED, 0 STARTED
+- signing keys: 1 ACTIVE; status lists: 1; public status list 200
+- secrets: database_url, brevo_smtp_password, signing_key present (values not read)
+- resources: 9.0 GB disk free, ~1.9 GB RAM available, 6.1 GB images, 4.6 GB build cache
+- HTTPS/reverse proxy: public endpoints reachable (openresty), health 200
+
+Operational authorization recorded
+- Authorized deployment operator: repository owner account mitayag (authorized by the deployment instruction)
+- Rollback owner: repository owner account mitayag
+- Maintenance window: authorized immediately by the instruction; no end time specified
+- Emergency recovery: pre-deploy backup restore + pre-stage7 image tags
+
+Blockers resolved before deployment
+- No STAGEH credentials existed initially.
+- Authorized dedicated STAGE7 test accounts were created; credentials file was generated outside the repo (600/700), used for baseline and acceptance, then removed.
+- No production email was sent; no credentials were issued during acceptance.

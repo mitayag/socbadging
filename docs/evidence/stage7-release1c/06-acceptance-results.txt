@@ -1,0 +1,42 @@
+Stage 7 Release 1C/1D — Production Acceptance Results
+Captured: 2026-11-28
+
+Credentials
+- Stage H-compatible credentials file with a stage7 extension
+- Stored outside the repository, 0700 directory / 0600 file
+- Passwords never printed, committed or captured in screenshots
+- File removed after acceptance
+
+Stage H authenticated baseline (before deployment, fixed spec)
+- 8 passed on desktop + mobile:
+  - public health/issuer/signing key/status list
+  - administrator login/dashboard/management/logout
+  - faculty login, own class visible, administrator route denied
+  - student login, portal, staff route denied, API denied, ownership isolation
+
+After deployment (production, commit c64038b)
+- Stage H spec: 8 passed (desktop + mobile)
+- Stage 7 acceptance spec: 8 passed (4 tests x desktop/mobile)
+  1. Administrator creates/edits/archives a test course; creates and approves a shared badge
+  2. Faculty A assigns the same badge to class A, duplicate assignment is rejected,
+     cross-class links are absent, shared definition is read-only, approval/version controls absent;
+     Faculty B assigns the same badge to class B and submits a proposal
+  3. Administrator approves the faculty proposal, sees 2 associated class sections,
+     creates and approves version 2, and verifies badge audit records
+  4. Student A and Student B authenticate, see the portal, cannot reach staff routes/APIs,
+     and cannot see each other's email
+- Evidence spec: 2 passed (desktop + mobile) with screenshots under docs/evidence/stage7-release1c/
+
+Not performed (by scope)
+- No production credential issuance
+- No external email delivery
+- No modification of actual academic records
+- Credential detail/download for the new test students was not exercised because no test credential was issued;
+  existing production credentials were verified: 3/3 page/API/image/QR 200
+
+Test data used for mutation
+- Course STAGE7-CAP-001 (created by migration from the two test classes)
+- Classes STAGE7-CAP-001 sections A and B (faculty A/B)
+- Students STAGE7-STU-A/B
+- Badges named "STAGE7 E2E Primary ..." and "STAGE7 E2E Proposal ..."
+- All test data archived after acceptance; no hard deletes

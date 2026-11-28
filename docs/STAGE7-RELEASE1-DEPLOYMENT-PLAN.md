@@ -1,11 +1,11 @@
 # Stage 7 Release 1 — Deployment Plan
 
-**Status:** Prepared and verified by Stage 7 Release 1B. No production merge or deployment is authorized by this document.
+**Status:** Executed successfully on 28 November 2026 as Stage 7 Release 1C. This plan is retained as the rollback and recovery reference.
 **Production URL:** https://socbadging.hausoc.org
 **Production project:** `hau_soc_badging_stage2`
-**Release candidate:** `81579e9` (application code; branch `feature/stage7-release1-shared-badge-library`)
+**Release candidate:** `81579e9`; deployed release: `c64038b` (release/v0.5.0-rc.1)
 **Production commit at readiness assessment:** `4eb403f`
-**Verified pre-release backup:** `/var/backups/hau-soc/stage7-release1b-20261128T064647Z`
+**Verified pre-release backups:** `/var/backups/hau-soc/stage7-release1b-20261128T064647Z`, `/var/backups/hau-soc/stage7-release1c-predeploy-20261128T072717Z`
 **Expected downtime:** ~1–3 minutes for worker/web recreation; the additive schema migration requires no downtime.
 
 ## 1. Preconditions (all required)
@@ -117,7 +117,19 @@ Required operator approvals:
 - [ ] Rollback owner confirms the `pre-stage7` image tags and backup path.
 - [ ] Operator confirms no production deployment occurs before authorization.
 
-## 9. Stage 7 Release 1B references
+## 9. Execution record (Stage 7 Release 1C)
+
+- Deployed release commit: `c64038b5caaccb0b378609d33de487e1e82a17d1`.
+- Web image: `sha256:365324803329e2ca199c0c8d020206045fa0e00dfa54d00d60d37aecae53834d`.
+- Worker image: `sha256:a23b29f60a8ce4d974411246c8de55cacbaf16c2b4a65f0b29b241deac2349b7`.
+- Rollback images: `hau-soc-badging-web:pre-stage7`, `hau-soc-badging-worker:pre-stage7`.
+- Schema migration: 21 → 22, applied successfully; promotion dry-run/apply/second-dry-run idempotent.
+- Historical credential counts and CRC sums unchanged; no reissuance or notification.
+- Worker/web rollout healthy; public and authenticated acceptance passed.
+- Observed downtime: brief worker and web recreation (seconds each); no public health failure.
+- Reports: `docs/STAGE7-RELEASE1C-PRODUCTION-DEPLOYMENT-REPORT.md`, `docs/STAGE7-RELEASE1C-PRODUCTION-ACCEPTANCE-REPORT.md`, `docs/STAGE7-RELEASE1C-TEST-ACCOUNT-RETIREMENT-REPORT.md`.
+
+## 10. Stage 7 Release 1B references
 
 - `docs/STAGE7-RELEASE1B-PRODUCTION-READINESS-REPORT.md`
 - `docs/STAGE7-RELEASE1B-MIGRATION-REHEARSAL-REPORT.md`
