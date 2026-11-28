@@ -2,7 +2,7 @@ import type { NotificationDelivery, PrismaClient } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const storage = vi.hoisted(() => ({ readStoredFile: vi.fn() }));
-vi.mock("@/platform/storage/local-storage", () => ({
+vi.mock("@/platform/storage/local-storage-core", () => ({
   readStoredFile: storage.readStoredFile,
 }));
 

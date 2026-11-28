@@ -5,7 +5,7 @@ import {
   AchievementSnapshotSchema,
   RecipientSnapshotSchema,
 } from "@/modules/issuance/services/snapshot-schemas";
-import { readStoredFile } from "@/platform/storage/local-storage";
+import { readStoredFile } from "@/platform/storage/local-storage-core";
 
 import { renderIssuedEmail } from "../templates/issued-email";
 import { renderRevokedEmail } from "../templates/revoked-email";
