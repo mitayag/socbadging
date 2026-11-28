@@ -58,3 +58,49 @@ export async function duplicateBadgeAction(f: FormData) {
   await duplicateBadge(await actor(), String(f.get("badgeId")));
   revalidatePath(`/classes/${classId}/badges`);
 }
+
+import {
+  archiveClassBadgeAssignment,
+  assignBadgeToClass,
+} from "@/modules/badge-library/services/class-badge-assignment-service";
+import { requireStaff } from "@/modules/identity/policies/authorization";
+
+function actionError(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+export async function assignBadgeAction(formData: FormData) {
+  const classId = String(formData.get("classId") ?? "");
+  const versionId = String(formData.get("versionId") ?? "");
+  const actor = requireStaff(await getCurrentActor());
+  let error = "";
+  try {
+    await assignBadgeToClass(actor, classId, versionId);
+  } catch (cause) {
+    error = actionError(cause, "Unable to assign the badge to this class.");
+  }
+  revalidatePath(`/classes/${classId}/badges`);
+  redirect(
+    error
+      ? `/classes/${classId}/badges?error=${encodeURIComponent(error)}`
+      : `/classes/${classId}/badges?notice=assigned`,
+  );
+}
+
+export async function archiveAssignmentAction(formData: FormData) {
+  const classId = String(formData.get("classId") ?? "");
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+  const actor = requireStaff(await getCurrentActor());
+  let error = "";
+  try {
+    await archiveClassBadgeAssignment(actor, assignmentId);
+  } catch (cause) {
+    error = actionError(cause, "Unable to archive the badge assignment.");
+  }
+  revalidatePath(`/classes/${classId}/badges`);
+  redirect(
+    error
+      ? `/classes/${classId}/badges?error=${encodeURIComponent(error)}`
+      : `/classes/${classId}/badges?notice=assignment-archived`,
+  );
+}

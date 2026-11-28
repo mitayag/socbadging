@@ -1,11 +1,21 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { requireClassOwner, requireStaff } from "@/modules/identity/policies/authorization";
+import {
+  AuthorizationError,
+  requireClassOwner,
+  requireStaff,
+} from "@/modules/identity/policies/authorization";
 import type { Actor } from "@/modules/identity/types";
 import { prisma } from "@/platform/db/prisma";
 import { validateBadgeImage } from "@/platform/storage/image-validation";
 import { putBadgeImage } from "@/platform/storage/local-storage";
+
+function assertMutableTemplate(template: { sharedDefinitionVersionId: string | null }) {
+  if (template.sharedDefinitionVersionId) {
+    throw new AuthorizationError("Shared badge assignments are managed from the badge library.");
+  }
+}
 
 const schema = z.object({
   name: z.string().trim().min(2).max(191),
@@ -90,8 +100,9 @@ export async function createBadge(actor: Actor, classId: string, raw: unknown, f
 export async function setBadgeStatus(actor: Actor, badgeId: string, status: "ACTIVE" | "ARCHIVED") {
   const badge = await prisma.badgeTemplate.findUniqueOrThrow({
     where: { id: badgeId },
-    select: { classId: true, ownerUserId: true },
+    select: { classId: true, ownerUserId: true, sharedDefinitionVersionId: true },
   });
+  assertMutableTemplate(badge);
   requireClassOwner(actor, badge.ownerUserId);
   return prisma.$transaction(async (tx) => {
     const item = await tx.badgeTemplate.update({ where: { id: badgeId }, data: { status } });
@@ -109,6 +120,7 @@ export async function setBadgeStatus(actor: Actor, badgeId: string, status: "ACT
 }
 export async function duplicateBadge(actor: Actor, badgeId: string) {
   const source = await prisma.badgeTemplate.findUniqueOrThrow({ where: { id: badgeId } });
+  assertMutableTemplate(source);
   requireClassOwner(actor, source.ownerUserId);
   return prisma.$transaction(async (tx) => {
     const item = await tx.badgeTemplate.create({
@@ -137,6 +149,7 @@ export async function duplicateBadge(actor: Actor, badgeId: string) {
 }
 export async function editBadge(actor: Actor, badgeId: string, raw: unknown, file?: File | null) {
   const existing = await prisma.badgeTemplate.findUniqueOrThrow({ where: { id: badgeId } });
+  assertMutableTemplate(existing);
   requireClassOwner(actor, existing.ownerUserId);
   const input = schema.parse(raw);
   let imagePath = existing.imagePath;
