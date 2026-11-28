@@ -4,6 +4,7 @@
  * Default mode is a read-only dry run. Pass --apply to write.
  * The script is idempotent: templates already linked to a library version are skipped.
  */
+import { readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -47,8 +48,14 @@ function normalizeName(value: string) {
 }
 
 function databaseUrl() {
-  const value = process.env.DATABASE_URL?.trim();
-  if (!value) throw new Error("DATABASE_URL is required");
+  let value = "";
+  try {
+    value = readFileSync("/run/secrets/database_url", "utf8").trim();
+  } catch {
+    // fall through to the environment
+  }
+  if (!value) value = process.env.DATABASE_URL?.trim() ?? "";
+  if (!value) throw new Error("DATABASE_URL or /run/secrets/database_url is required");
   return new URL(value);
 }
 
@@ -60,7 +67,8 @@ function createClient() {
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
     database: url.pathname.slice(1),
-    connectionLimit: 4,
+    connectionLimit: 1,
+    connectTimeout: 10_000,
   });
   return new PrismaClient({ adapter });
 }
