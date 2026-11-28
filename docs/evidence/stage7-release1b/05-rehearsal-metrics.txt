@@ -1,0 +1,48 @@
+Stage 7 Release 1B — Migration Rehearsal Metrics
+Generated: 2026-11-28T06:47Z
+
+Source: production database dump (read-only), restored into an isolated MariaDB 11.8 database.
+The production database was never migrated or modified.
+
+Metric                              Production baseline   Rehearsal after migration
+----------------------------------  --------------------  -------------------------
+badge_issuances (total)             3                     3
+badge_issuances ACTIVE              2                     2
+badge_issuances REVOKED             1                     1
+badge_issuances EXPIRED             0                     0
+signed credentials                  3                     3
+issuance identity CRC32 sum         10420535069           10420535069
+signed credential CRC32 sum         5032942483            5032942483
+notification_deliveries             4                     4
+notification_delivery_attempts      2                     2
+credential_status_allocations       3                     3
+_prisma_migrations                  21                    22
+courses                             0                     2
+badge_definitions                   0                     3
+badge_definition_versions           0                     3
+class_badge_assignments             0                     3
+badge_templates linked              0                     3
+badge_templates unlinked            3                     0
+audit_logs                          45                    48
+audit backfill rows                 0                     3
+classes                             2                     2
+badge_templates                     3                     3
+students                            41                    41
+users                               2                     2
+
+Consistency and duplicate analysis (rehearsal database)
+- Course code/title inconsistencies: none.
+- Duplicate badge definitions (same course + normalized name): none.
+- Definitions approved without historical approver provenance: 3 (expected; legacy templates had no approval workflow).
+- Duplicate groups reported by the migration script: 0.
+- Automatic merges/deletions performed: 0.
+
+Idempotency
+- First apply: 2 courses created, 2 classes mapped, 3 definitions/versions/assignments created.
+- Second apply: 0 created, 0 mapped, 3 already linked.
+- Dry run after apply: 0 to create, 0 created, 0 duplicate groups, 0 errors.
+
+Safety
+- No historical credential reissued (issuance count unchanged).
+- No notification delivery/attempt created (counts unchanged).
+- Public IDs, signatures, expiration values, revocation state and signing-key IDs unchanged (CRC sums identical).

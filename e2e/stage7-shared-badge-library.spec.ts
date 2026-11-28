@@ -151,6 +151,30 @@ test.describe.serial("Stage 7 shared badge library", () => {
     }
   });
 
+  test("faculty can propose a badge but cannot approve it", async ({ page }) => {
+    const proposalName = `Faculty Proposal ${suffix}`;
+    await login(page, fixture.E2E_FACULTY_EMAIL, fixture.E2E_FACULTY_PASSWORD);
+    await page.goto("/library?scope=mine");
+    const panel = page.locator("details", { hasText: "Propose a Badge" });
+    await panel.locator("summary").click();
+    await panel
+      .getByLabel("Associated Course")
+      .selectOption({ label: `${courseCode} · ${courseTitle}` });
+    await panel.getByLabel("Badge Name").fill(proposalName);
+    await panel.getByLabel("Description").fill("Faculty-proposed shared badge");
+    await panel.getByLabel("Competencies").fill("Applied problem solving");
+    await panel.getByLabel("Assessment Criteria").fill("Complete the assessment rubric");
+    await panel.getByLabel(/Badge Artwork/).setInputFiles(artwork);
+    await panel.getByRole("button", { name: "Create Proposal" }).click();
+    await expect(page.getByRole("heading", { name: proposalName })).toBeVisible();
+    await expect(page.getByText("Badge definition created as a draft.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Approve & Publish" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Submit for Approval" }).click();
+    await expect(page.getByText("Badge version submitted for approval.")).toBeVisible();
+    await expect(page.getByText("Pending Approval").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Approve & Publish" })).toHaveCount(0);
+  });
+
   test("faculty cannot reach the approval queue or administrator catalog", async ({ page }) => {
     await login(page, fixture.E2E_FACULTY_EMAIL, fixture.E2E_FACULTY_PASSWORD);
     await page.goto("/library?scope=queue");

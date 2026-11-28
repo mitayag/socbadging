@@ -1,0 +1,53 @@
+Stage 7 Release 1B — Production Environment Inspection (read-only)
+Captured: 2026-11-28T06:46Z
+
+Host
+- hostname: badging-server
+- architecture: x86_64
+- uptime: 18 days
+- disk: 30G total, 20G used, 9.0G available (69%)
+- memory: 3.9G total, 1.9G available
+
+Application
+- source: /opt/socbadging
+- deployed commit: 4eb403f190c6489ad34e1b7310c89c50ec136ee8
+- working tree: only untracked deploy/staging-healthfix.override.yaml
+- compose project: hau_soc_badging_stage2
+
+Containers (all healthy)
+- web: hau-soc-badging-web:stage-studentimport-4eb403f (healthy)
+- worker: hau-soc-badging-worker:stage-studentimport-4eb403f (healthy)
+- signer: hau_soc_badging_stage2-signer (healthy)
+- db: mariadb:11.8 (healthy)
+- mailpit: axllent/mailpit:v1.27 (healthy)
+
+Health
+- public /api/health: status=ok, readiness=ready, database=ready, notifications=ready,
+  workerHeartbeat=fresh, signer=ready, keyId=.../keys/staging-2026-11
+- local web health on 192.168.3.234:3002: same ready state
+- pending/failed migrations: 0 pending, 21 applied
+
+Secrets
+- /etc/hau-soc/secrets/brevo_smtp_password present (mode 600, owner socbadging-test, 90 bytes)
+- worker exposes expected Brevo/email variable names; values were not read or printed
+- signing key file present and parses as JSON; contents not printed
+
+Queue
+- notification_deliveries: SENT 2, FAILED 2
+- notification_delivery_attempts: ACCEPTED 2, STARTED 0
+- no in-flight claims at inspection time
+
+Public endpoints
+- /api/health 200; /login 200; /dashboard 200; /student 307
+- /api/issuers/hau-soc 200 (application/ld+json)
+- /api/status-lists/status-list-local 200 (application/ld+json)
+- credential page/API/download 200; image 200 image/jpeg; PDF 200 application/pdf; QR 200 image/png
+- sampled credential: ACTIVE, signed, not revoked, no expiry
+
+Media
+- volume hau_soc_badging_stage2_media_data: ~1.0 MB, 3 files
+
+Release candidate differences
+- code: 4eb403f..81579e9 (Stage 7 Release 1) — 45 files, additive course/library feature
+- database: 21 applied migrations vs 22 in candidate (one additive Stage 7 migration)
+- no conflicting or destructive schema change

@@ -1,0 +1,41 @@
+Stage 7 Release 1B — Test Execution Evidence
+Generated: 2026-11-28
+
+Release candidate code: 81579e9 (feature/stage7-release1-shared-badge-library)
+
+Commands and results
+--------------------
+npm run format                                   PASS (all files formatted)
+npm run lint                                     PASS (0 warnings)
+npm run typecheck                                PASS
+npm test                                         921 passed / 124 files
+npx vitest run --config vitest.integration.config.ts
+                                                 159 passed / 23 files
+npm run build                                    PASS (Next.js 16.4.3)
+
+npx playwright test e2e/*.spec.ts                78 passed, 2 skipped, 0 failed (4.9m)
+npx playwright test e2e/stage7-shared-badge-library.spec.ts
+                                                 8 passed (4 tests x desktop/mobile)
+npx playwright test --config playwright.production.config.ts
+                                                 2 passed (public production checks),
+                                                 6 skipped (authenticated tests need
+                                                 STAGEH_CREDENTIALS_FILE)
+
+Investigated failures
+---------------------
+The two failures seen in the earlier full suite were the production-only
+e2e/production/stageh-acceptance.spec.ts running against the disposable local
+server (signer.status=unknown because no active signing key was registered).
+Run with playwright.production.config.ts against https://socbadging.hausoc.org,
+the public tests pass on desktop and mobile. The authenticated tests are skipped
+because no STAGEH_CREDENTIALS_FILE was provided.
+
+Skipped tests
+-------------
+- Stage H authenticated production acceptance (6): missing authorized credentials.
+- student-import evidence capture (2): intentional screenshot-capture helpers.
+
+GitHub CI
+---------
+Quality workflow passed on the Stage 7 branch prior to readiness documentation.
+The readiness commit is pushed and CI is verified in the final report.

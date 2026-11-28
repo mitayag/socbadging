@@ -1,8 +1,12 @@
 # Stage 7 Release 1 — Deployment Plan
 
-**Status:** Prepared only. No production merge or deployment is authorized by this document.
+**Status:** Prepared and verified by Stage 7 Release 1B. No production merge or deployment is authorized by this document.
 **Production URL:** https://socbadging.hausoc.org
 **Production project:** `hau_soc_badging_stage2`
+**Release candidate:** `81579e9` (application code; branch `feature/stage7-release1-shared-badge-library`)
+**Production commit at readiness assessment:** `4eb403f`
+**Verified pre-release backup:** `/var/backups/hau-soc/stage7-release1b-20261128T064647Z`
+**Expected downtime:** ~1–3 minutes for worker/web recreation; the additive schema migration requires no downtime.
 
 ## 1. Preconditions (all required)
 
@@ -14,6 +18,8 @@
 - [ ] Staging acceptance of the same commit, including the migration dry-run.
 - [ ] Notification worker healthy and queue free of in-flight work.
 - [ ] Confirmation that no additional migration is required beyond the additive Stage 7 migration.
+- [ ] Stage 7 Release 1B readiness, migration rehearsal, regression and GO/NO-GO reports reviewed and approved.
+- [ ] Authenticated production acceptance credentials (`STAGEH_CREDENTIALS_FILE`) or an approved manual equivalent available for post-deployment smoke testing.
 
 ## 2. Pre-deployment verification
 
@@ -53,7 +59,7 @@ Accept only if:
 
 ## 4. Deployment sequence
 
-1. Apply the schema migration with the existing one-shot `migrate` service (`prisma migrate deploy`). The migration is additive; no downtime is required for the schema change.
+1. Apply the schema migration with the existing one-shot `migrate` service (`prisma migrate deploy`). The migration is additive; no downtime is required for the schema change. Confirm the ledger moves from 21 to 22 and no pending/failed migration remains.
 2. Build web and worker images from the approved commit (amd64).
 3. Record current image IDs and tag them `pre-stage7`.
 4. Deploy the worker first; verify health, cycles, timeout/error logs and heartbeat.
@@ -87,6 +93,8 @@ Application rollback is sufficient because the schema change is additive:
 2. Leave new tables/columns in place; the previous code ignores them.
 3. If data promotion must be undone, follow `docs/STAGE7-RELEASE1-MIGRATION-PLAN.md` §7. Never rewrite `badge_issuances`, signatures, public IDs, status allocations, notification history or audit logs.
 4. A database restore is required only for a destructive failure outside the additive design.
+5. Records created after deployment (courses, definitions, versions, assignments, materialized templates, audit/review rows) remain valid under the previous code and are ignored by it. Do not delete them during an application rollback; leave them in place unless a separately approved data rollback is executed.
+6. If the promotion script was applied, follow `docs/STAGE7-RELEASE1-MIGRATION-PLAN.md` §7 to unlink/remove only the promoted rows, never historical issuances, signatures, public IDs, notifications or audit logs.
 
 ## 7. Stop conditions
 
@@ -100,3 +108,19 @@ Application rollback is sufficient because the schema change is additive:
 ## 8. Approval gate
 
 Production merge and deployment remain blocked until explicit authorization is recorded. The feature branch is ready for review, CI verification and a staging rehearsal.
+
+Required operator approvals:
+
+- [ ] Release owner authorizes deployment and the maintenance window.
+- [ ] Security/authorization owner accepts the Stage 7 Release 1B security assessment.
+- [ ] Data owner accepts the migration rehearsal and backup/restore evidence.
+- [ ] Rollback owner confirms the `pre-stage7` image tags and backup path.
+- [ ] Operator confirms no production deployment occurs before authorization.
+
+## 9. Stage 7 Release 1B references
+
+- `docs/STAGE7-RELEASE1B-PRODUCTION-READINESS-REPORT.md`
+- `docs/STAGE7-RELEASE1B-MIGRATION-REHEARSAL-REPORT.md`
+- `docs/STAGE7-RELEASE1B-REGRESSION-TEST-REPORT.md`
+- `docs/STAGE7-RELEASE1B-GO-NOGO-ASSESSMENT.md`
+- `docs/evidence/stage7-release1b/`

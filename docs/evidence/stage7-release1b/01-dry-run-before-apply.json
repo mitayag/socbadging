@@ -1,0 +1,73 @@
+{
+  "mode": "dry-run",
+  "generatedAt": "2026-11-28T06:47:27.587Z",
+  "courses": {
+    "created": 2,
+    "existing": 0,
+    "plans": [
+      {
+        "normalizedCode": "2292",
+        "code": "2292",
+        "title": "6ADET",
+        "classIds": ["cmwyeyu5u000d01k92ubxp50g"],
+        "existingCourseId": null
+      },
+      {
+        "normalizedCode": "6IOTSEC",
+        "code": "6IOTSEC",
+        "title": "IoT Security",
+        "classIds": ["cmwuayeut000k01p3l8zji9dr"],
+        "existingCourseId": null
+      }
+    ]
+  },
+  "classes": {
+    "mapped": 2,
+    "alreadyMapped": 0
+  },
+  "templates": {
+    "planned": 3,
+    "created": 0,
+    "skippedLinked": 0,
+    "plans": [
+      {
+        "templateId": "cmwx86wrh000e01s0xpand552",
+        "classId": "cmwuayeut000k01p3l8zji9dr",
+        "className": "6IOTSEC · CYB IOTSEC",
+        "name": "Test 1",
+        "courseId": "dry-run:6IOTSEC",
+        "courseCode": "6IOTSEC",
+        "status": "ACTIVE",
+        "imagePath": "badges/3e901ed4-e59d-4a18-93eb-70cd188cc2d2.jpg",
+        "criteria": "To earn this you need to finisd",
+        "action": "create-definition"
+      },
+      {
+        "templateId": "cmwxavt5x000101k9mn0023i1",
+        "classId": "cmwuayeut000k01p3l8zji9dr",
+        "className": "6IOTSEC · CYB IOTSEC",
+        "name": "Test 2",
+        "courseId": "dry-run:6IOTSEC",
+        "courseCode": "6IOTSEC",
+        "status": "ACTIVE",
+        "imagePath": "badges/776d6f58-f4b3-4d88-a707-db48172c5b42.jpg",
+        "criteria": "Test Badge Test Badge Test Badge",
+        "action": "create-definition"
+      },
+      {
+        "templateId": "cmwub0tvh000o01p3ax0npm5k",
+        "classId": "cmwuayeut000k01p3l8zji9dr",
+        "className": "6IOTSEC · CYB IOTSEC",
+        "name": "Test Badge",
+        "courseId": "dry-run:6IOTSEC",
+        "courseCode": "6IOTSEC",
+        "status": "ACTIVE",
+        "imagePath": "badges/19307fb8-ddad-4e78-8a9c-8074ed156b24.jpg",
+        "criteria": "This is a sample badge",
+        "action": "create-definition"
+      }
+    ]
+  },
+  "duplicates": [],
+  "errors": []
+}
