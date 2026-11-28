@@ -41,6 +41,16 @@ Authenticated users can access:
 
 Batch uploads accept `.csv` and `.xlsx` files up to 2 MiB and 5,000 data rows. Student Number is required; Email is an optional identity cross-check. A stored preview expires after 30 minutes. Only `READY` rows are committed; invalid rows remain excluded and reportable, while already-issued rows are handled idempotently.
 
+## Shared course badges (Stage 7 Release 1)
+
+Administrators manage a standardized course catalog at `/catalog` and an institutional badge library at `/library`. Faculty browse approved badges, submit proposals, and assign approved badges to their own class sections from `/classes/:classId/badges`.
+
+- Badge material changes create a new immutable version; issued credentials keep their original version, signature, public ID and status.
+- Faculty cannot edit or archive approved shared definitions and cannot approve badges.
+- One approved version can be assigned to multiple sections owned by different faculty. Duplicate assignments are prevented.
+- Assignments materialize an existing class-scoped `BadgeTemplate`, so individual/batch issuance, signing, notifications and verification are unchanged.
+- Existing class badges are promoted with `npx tsx scripts/stage7-release1-migrate.ts` (dry run) and `--apply`; the script is idempotent, reports duplicates for review, and never merges or deletes historical data.
+
 ## Student portal
 
 Students can activate an account from an Administrator invitation on `/students`, then sign in through the shared login page and land on `/student`. The student portal provides an overview, badge wallet, private credential detail, notification history, profile, and help. Student queries are scoped to the authenticated `StudentAccount`; direct access to another student's credential returns a generic not-found response.
