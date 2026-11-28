@@ -277,6 +277,28 @@ Do not call the product “Open Badges certified” until the applicable 1EdTech
 8. Existing classes, badges, issuances, revocations, notifications and audit records are preserved.
 9. Migration provides a dry-run, duplicate detection, reconciliation report, backup and rollback.
 
+## 12b. Stage 7 Release 1 Closure Status (v1.0.0)
+
+**Closure date:** 28 November 2026
+**Classification:** Production accepted with advisories
+**Formal tag:** `v1.0.0` → deployed application commit `c64038b`
+**Production:** https://socbadging.hausoc.org
+**Migrations:** 22
+
+| ID     | Requirement                              | Status                        | Evidence                                                                       |
+| ------ | ---------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| FR-024 | Standardized course catalog              | Implemented, tested, deployed | Production `/catalog`; Stage 7 E2E; migration created 3 courses                |
+| FR-025 | Centralized badge library                | Implemented, tested, deployed | Production `/library`; create/approve; unit/integration tests                  |
+| FR-026 | Badge approval and versioning            | Implemented, tested, deployed | Faculty proposal approval; v2 create/approve; review/version history           |
+| FR-027 | Shared class badge assignments           | Implemented, tested, deployed | Two faculty across two sections; duplicate prevention; usage shows 2 sections  |
+| FR-028 | Faculty access and shared badge controls | Implemented, tested, deployed | Read-only approved definitions; admin-only approval; ownership isolation       |
+| FR-029 | Legacy migration and preservation        | Implemented, tested, deployed | 21→22 migration; idempotent promotion; 0 duplicates; credential CRCs unchanged |
+
+All previously approved requirements and their acceptance evidence are preserved. Test/evidence
+records are retained; no historical credential or audit record was deleted. See
+`docs/STAGE7-RELEASE1-FINAL-CLOSURE-REPORT.md` for advisories (first live issuance/email not exercised,
+two historical failed notifications, legacy approval provenance, archived test data retained).
+
 ## 13. Codex Build Sequence
 
 1. **Phase 0 — Repo & Design Spec:** `REQUIREMENTS.md`, `AGENTS.md`, design tokens, Docker Compose skeleton, environment template.

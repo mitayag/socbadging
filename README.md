@@ -7,6 +7,23 @@ Issued credentials are immutable historical records. Phase 8 credentials use sig
 available without being presented as cryptographically verified. This product is **not Open Badges
 certified**.
 
+## Release status
+
+**Stage 7 Release 1 — v1.0.0 — PRODUCTION ACCEPTED WITH ADVISORIES**
+
+- Production: https://socbadging.hausoc.org
+- Formal tag `v1.0.0` → deployed application commit `c64038b`
+- Repository HEAD includes subsequent test/evidence/documentation commits (`a080710`)
+- Runtime package version remains `0.5.0-rc.1`; no version-file change or redeploy was made for labeling
+- Database migrations: 22
+- Closure: [final closure report](docs/STAGE7-RELEASE1-FINAL-CLOSURE-REPORT.md)
+- Operations: [operational handover](docs/STAGE7-RELEASE1-OPERATIONAL-HANDOVER.md)
+- First live issuance: [checklist](docs/STAGE7-RELEASE1-FIRST-ISSUANCE-CHECKLIST.md) (requires separate authorization)
+- Release notes: [v1.0.0 notes](docs/STAGE7-RELEASE1-RELEASE-NOTES.md)
+
+Live credential issuance, external email delivery and authenticated student credential downloads
+were not exercised during acceptance and remain separately authorized milestones.
+
 ## Local setup
 
 1. Copy `.env.example` to `.env` and replace every example database and bootstrap credential with a unique value.
