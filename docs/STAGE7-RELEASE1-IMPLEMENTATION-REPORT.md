@@ -3,7 +3,8 @@
 **Date:** 28 November 2026
 **Branch:** `feature/stage7-release1-shared-badge-library`
 **Base:** `4eb403f` (`release/v0.5.0-rc.1`)
-**Commits:** `4a0f6ac` (catalog), `b73a878` (library + assignments), `aaf064d` (migration script)
+**Commits:** `4a0f6ac` (catalog), `b73a878` (library + assignments), `aaf064d` (migration script), `cb559fe` (E2E, evidence, reports)
+**CI:** Quality workflow passed on `cb559fe`
 **Scope:** centralized course catalog, institutional badge library with approvals/versions, shared class badge assignment. Micro-credentials and CHED modules are deferred to Release 2.
 
 ## 1. Implemented functionality
