@@ -16,3 +16,4 @@ docs/screenshots/
 *.log
 .DS_Store
 tsconfig.tsbuildinfo
+reports/stage7-release1-migration-*
